@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kaypoh Aunty</title>
+    <link rel="icon" type="image/x-icon" href="./media/icon.ico">
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <div class="container" id="mainContainer">
+        <div class="header">
+            <img src="./media/logo.png" alt="Kaypoh Aunty Logo" class="logo-img">
+            <p id="headerTagline">Kaypoh what location? Aunty find for you!</p>
+        </div>
+
+        <div class="search-section" id="searchSection">
+            <div class="tab-selector">
+                <button class="tab-btn active" id="tabSearch">Search</button>
+                <button class="tab-btn" id="tabTest">Test</button>
+            </div>
+            <div class="search-box" id="searchTab">
+                <input type="text" class="search-input" placeholder="Search for a location" id="searchInput">
+                <button class="search-btn" id="searchBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="M21 21L16.65 16.65"></path>
+                    </svg>
+                </button>
+            </div>
+            <div style="margin-top: 10px; text-align: center;" id="searchScopeContainer">
+                <label for="searchScope" style="font-size: 1rem; margin-right: 10px;">Search Scope:</label>
+                <select id="searchScope" style="padding: 6px 16px; border-radius: 20px; border: 1px solid #e1e5e9; font-size: 1rem;">
+                    <option value="local">Local (Singapore)</option>
+                    <option value="world">Rest of the World</option>
+                </select>
+            </div>
+            <div class="places-list" id="placesList"></div>
+            <div class="test-section" id="testTab">
+                <label for="testInput" style="display:block; font-weight:500; margin-bottom:6px; text-align:left;">Enter your review:</label>
+                <div class="star-rating" id="testStarRating">
+                    <span class="star" data-value="1">&#9733;</span>
+                    <span class="star" data-value="2">&#9733;</span>
+                    <span class="star" data-value="3">&#9733;</span>
+                    <span class="star" data-value="4">&#9733;</span>
+                    <span class="star" data-value="5">&#9733;</span>
+                </div>
+                <textarea class="test-input" id="testInput" placeholder="Paste or type a review to test classification..."></textarea>
+                <button class="test-btn" id="testBtn">Classify Review</button>
+                <div class="test-result" id="testResult"></div>
+            </div>
+        </div>
+
+        <div class="reviews-section" id="reviewsSection">
+            <div class="section-header">
+                <div class="selected-place">
+                    <h2 id="selectedPlaceName">Place Name</h2>
+                    <div class="place-details">
+                        <span id="selectedPlaceAddress">Address</span>
+                        <div class="rating">
+                            <span class="stars" id="selectedPlaceStars">★★★★☆</span>
+                            <span id="selectedPlaceRating">4.2</span>
+                            <span>•</span>
+                            <span id="selectedPlaceReviews">847 reviews</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-section">
+                    <button class="filter-btn active" data-category="all">All</button>
+                    <button class="filter-btn" data-category="Useful">Useful</button>
+                    <button class="filter-btn" data-category="Advertisements">Ads</button>
+                    <button class="filter-btn" data-category="Spam">Spam</button>
+                    <button class="filter-btn" data-category="Irrelevant Content">Irrelevant</button>
+                    <button class="filter-btn" data-category="Rant Without Visit">No Visits</button>
+                </div>
+            </div>
+            
+            <div class="reviews-grid" id="reviewsGrid"></div>
+        </div>
+    </div>
+
+    <script src="./app.js"></script>
+    <script>
+    // Tagline switching logic for tab change
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabSearch = document.getElementById('tabSearch');
+        const tabTest = document.getElementById('tabTest');
+        const headerTagline = document.getElementById('headerTagline');
+        if (tabSearch && tabTest && headerTagline) {
+            tabSearch.addEventListener('click', function() {
+                headerTagline.textContent = "Kaypoh what location? Aunty find for you!";
+            });
+            tabTest.addEventListener('click', function() {
+                headerTagline.textContent = "Don't believe Auntie? Come test me lah!";
+            });
+        }
+    });
+    </script>
+</body>
+</html>
