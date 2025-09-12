@@ -1,13 +1,101 @@
-# Project: Kaypoh Aunty - AI-Powered Google Review Classifier
+# Kaypoh Aunty 🕵️‍♀️
 
-## Project Overview
+A web application for scraping and classifying location reviews with AI-powered sentiment analysis. "Kaypoh" means nosy in Singaporean slang, and this app helps you be nosy about places by analyzing their reviews!
 
-Kaypoh Aunty is a web application designed to analyze and categorize Google reviews. The website scrapes reviews based on a user's search query and then classifies them using a custom-trained machine learning model. The objective is to provide users with a filtered, more efficient way to understand public feedback.
+## Features
 
-Each review is categorized into one or more of the following five classes:
+- 🔍 **Smart Review Scraping**: Search for locations and scrape reviews from various sources
+- 🤖 **AI-Powered Classification**: Automatically classify reviews using machine learning
+- 🌏 **Local & Global Search**: Search within Singapore or worldwide
+- 📊 **Review Analysis**: Categorize reviews as useful, spam, rants, etc.
+- 🎨 **Modern UI**: Clean, responsive interface built with vanilla HTML/CSS/JS
 
-*   **Useful Reviews**
-*   **Advertisements**
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v14 or higher)
+- npm or yarn
+- Apify API token (for review scraping)
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd kaypoh-aunty
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Set up environment variables:
+```bash
+cp .env.example .env
+```
+Edit `.env` and add your Apify API token:
+```
+APIFY_API_TOKEN=your_apify_api_token_here
+```
+
+4. Start the development server:
+```bash
+npm run dev
+```
+
+5. Open your browser and visit `http://localhost:3000`
+
+## Scripts
+
+- `npm start` - Start the production server
+- `npm run dev` - Start the development server with nodemon
+- `npm run serve` - Serve static files only (for testing frontend)
+- `npm run lint` - Run ESLint
+- `npm test` - Run tests (placeholder)
+
+## Project Structure
+
+```
+kaypoh-aunty/
+├── api/                    # API endpoints
+│   ├── classify-review.js  # Review classification endpoint
+│   └── scrape-reviews.js   # Review scraping endpoint
+├── public/                 # Static frontend files
+│   ├── index.html         # Main HTML file
+│   ├── style.css          # Styles
+│   ├── app.js            # Frontend JavaScript
+│   └── media/            # Images and icons
+├── server.js              # Express server
+├── package.json           # npm configuration
+└── README.md             # This file
+```
+
+## API Endpoints
+
+### POST /api/scrape-reviews
+Scrape reviews for a location.
+
+**Request body:**
+```json
+{
+  "searchQuery": "Restaurant name",
+  "location": "Singapore"
+}
+```
+
+### POST /api/classify-review
+Classify a single review.
+
+**Request body:**
+```json
+{
+  "reviewText": "Great food and service!",
+  "rating": 5,
+  "threshold": 0.5
+}
+```
 *   **Spam**
 *   **Rants Without Visits**
 *   **Irrelevant Content**

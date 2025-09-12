@@ -1,6 +1,8 @@
 // api/scrape-reviews.js
 // This file should be placed in the 'api' folder in your Vercel project root
 
+import { preClassifyBatch } from './local-classifier.js';
+
 export default async function handler(req, res) {
   // Enable CORS for your frontend
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -108,215 +110,165 @@ export default async function handler(req, res) {
 
 async function classifyReviewsInResults(results) {
   const classifiedResults = [];
-  // Fixed: Use the correct Gradio API endpoint for batch processing
-  const HF_BATCH_URL = 'https://louistzx-kaypoh-aunty.hf.space/gradio_api/call/classify_batch';
   const threshold = 0.5;
 
   for (const place of results) {
     const classifiedPlace = { ...place };
     if (place.reviews && place.reviews.length > 0) {
-      console.log(`[${new Date().toISOString()}] Classifying ${place.reviews.length} reviews for: ${place.title}`);
+      console.log(`[${new Date().toISOString()}] Processing ${place.reviews.length} reviews for: ${place.title}`);
       
-      // Prepare batch payload
-      const reviewTexts = place.reviews.map(r => r.text || r.reviewText || '');
-      
-      try {
-        // Step 1: POST to get event ID
-        const response = await fetch(HF_BATCH_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            data: [JSON.stringify(reviewTexts), threshold] 
-          }),
-          signal: AbortSignal.timeout(60000)
-        });
+      // Step 1: Local classification first
+      const localResults = preClassifyBatch(place.reviews);
+      console.log(`[${new Date().toISOString()}] Local classification results:`, {
+        total: localResults.summary.totalReviews,
+        locallyClassified: localResults.summary.locallyClassified,
+        needsML: localResults.summary.needsML,
+        categories: localResults.summary.byCategory
+      });
 
-        if (!response.ok) {
-          throw new Error(`Batch API POST error: ${response.status} - ${await response.text()}`);
-        }
+      let allClassifiedReviews = [...localResults.locallyClassified];
 
-        const result = await response.json();
-        const eventId = result.event_id;
+      // Step 2: Send only unclassified reviews to ML model
+      if (localResults.needsMLClassification.length > 0) {
+        console.log(`[${new Date().toISOString()}] *** SENDING ${localResults.needsMLClassification.length} REVIEWS TO AI MODEL ***`);
+        console.log(`[${new Date().toISOString()}] Reviews going to AI:`, localResults.needsMLClassification.map(r => `"${(r.text || r.reviewText || '').substring(0, 50)}..."`));
         
-        if (!eventId) {
-          throw new Error('No event_id in batch response: ' + JSON.stringify(result));
+        try {
+          const mlClassifiedReviews = await classifyWithMLModel(localResults.needsMLClassification, threshold);
+          console.log(`[${new Date().toISOString()}] *** AI MODEL RETURNED ${mlClassifiedReviews.length} CLASSIFICATIONS ***`);
+          allClassifiedReviews = allClassifiedReviews.concat(mlClassifiedReviews);
+        } catch (error) {
+          console.error(`ML classification failed for ${place.title}:`, error.message);
+          // Fallback: mark ML reviews as unclassified
+          const fallbackReviews = localResults.needsMLClassification.map(r => ({ 
+            ...r, 
+            classifications: ['Unclassified'], 
+            classificationScores: {},
+            localClassification: false,
+            classificationReason: 'ML classification failed'
+          }));
+          allClassifiedReviews = allClassifiedReviews.concat(fallbackReviews);
         }
-
-        console.log(`[${new Date().toISOString()}] Got batch event ID: ${eventId}`);
-
-        // Step 2: GET the results using event ID
-        const resultUrl = `${HF_BATCH_URL}/${eventId}`;
-        const resultResponse = await fetch(resultUrl, {
-          signal: AbortSignal.timeout(120000) // Longer timeout for batch processing
-        });
-
-        if (!resultResponse.ok) {
-          throw new Error(`Batch result fetch failed: ${resultResponse.status} - ${await resultResponse.text()}`);
-        }
-
-        // Step 3: Parse the streaming response
-        const responseText = await resultResponse.text();
-        const lines = responseText.split('\n');
-        
-        let batchResults = null;
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataContent = line.substring(6); // Remove 'data: ' prefix
-            try {
-              const parsedData = JSON.parse(dataContent);
-              // Gradio wraps results in an array, get the first element
-              if (Array.isArray(parsedData) && parsedData.length > 0) {
-                batchResults = parsedData[0];
-              } else {
-                batchResults = parsedData;
-              }
-              break;
-            } catch (parseError) {
-              console.error('Failed to parse batch data:', parseError.message);
-              continue;
-            }
-          }
-        }
-
-        if (batchResults && batchResults.batch_results) {
-          // Merge classifications into reviews
-          const classifiedReviews = place.reviews.map((review, i) => {
-            const batchRes = batchResults.batch_results[i] || {};
-            return {
-              ...review,
-              classifications: (batchRes.predictions || []).map(p => p.label),
-              classificationScores: batchRes.all_scores || {}
-            };
-          });
-          classifiedPlace.reviews = classifiedReviews;
-        } else {
-          throw new Error('Invalid batch API response format: ' + JSON.stringify(batchResults));
-        }
-      } catch (error) {
-        console.error(`Batch classification failed for ${place.title}:`, error.message);
-        // Fallback: mark all as unclassified
-        classifiedPlace.reviews = place.reviews.map(r => ({ 
-          ...r, 
-          classifications: ['Unclassified'], 
-          classificationScores: {} 
-        }));
+      } else {
+        console.log(`[${new Date().toISOString()}] *** NO REVIEWS SENT TO AI MODEL - ALL ${localResults.summary.locallyClassified} WERE CLASSIFIED LOCALLY ***`);
       }
+
+      // Restore original order of reviews
+      const reviewOrder = place.reviews.map(r => r.text || r.reviewText || '');
+      allClassifiedReviews.sort((a, b) => {
+        const aIndex = reviewOrder.indexOf(a.text || a.reviewText || '');
+        const bIndex = reviewOrder.indexOf(b.text || b.reviewText || '');
+        return aIndex - bIndex;
+      });
+
+      classifiedPlace.reviews = allClassifiedReviews;
+      classifiedPlace.classificationSummary = {
+        ...localResults.summary,
+        mlClassified: localResults.needsMLClassification.length
+      };
     }
     classifiedResults.push(classifiedPlace);
   }
   return classifiedResults;
 }
 
-async function classifySingleReview(reviewText, rating = 0, threshold = 0.5, maxRetries = 3) {
-  // Fixed: Use the correct Gradio API endpoint
-  const HF_API_URL = 'https://louistzx-kaypoh-aunty.hf.space/gradio_api/call/classify_review';
+async function classifyWithMLModel(reviews, threshold) {
+  // Fixed: Use the correct Gradio API endpoint for batch processing
+  const HF_BATCH_URL = 'https://louistzx-kaypoh-aunty.hf.space/gradio_api/call/classify_batch';
   
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      // Step 1: POST to get event ID
-      const response = await fetch(HF_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          data: [reviewText, threshold]
-        }),
-        signal: AbortSignal.timeout(30000)
-      });
+  // Prepare batch payload
+  const reviewTexts = reviews.map(r => r.text || r.reviewText || '');
+  
+  // Step 1: POST to get event ID
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  
+  const response = await fetch(HF_BATCH_URL, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+    },
+    body: JSON.stringify({ 
+      data: [JSON.stringify(reviewTexts), threshold] 
+    }),
+    signal: controller.signal
+  });
 
-      if (response.status === 429) {
-        const delay = Math.pow(2, attempt) * 1000;
-        console.log(`Rate limit hit, waiting ${delay}ms before retry ${attempt}/${maxRetries}`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+  clearTimeout(timeoutId);
+
+  if (!response.ok) {
+    throw new Error(`Batch API POST error: ${response.status} - ${await response.text()}`);
+  }
+
+  const result = await response.json();
+  const eventId = result.event_id;
+  
+  if (!eventId) {
+    throw new Error('No event_id in batch response: ' + JSON.stringify(result));
+  }
+
+  console.log(`[${new Date().toISOString()}] Got batch event ID: ${eventId}`);
+
+  // Step 2: GET the results using event ID
+  const resultUrl = `${HF_BATCH_URL}/${eventId}`;
+  const resultController = new AbortController();
+  const resultTimeoutId = setTimeout(() => resultController.abort(), 120000); // Longer timeout for batch processing
+  
+  const resultResponse = await fetch(resultUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+    },
+    signal: resultController.signal
+  });
+
+  clearTimeout(resultTimeoutId);
+
+  if (!resultResponse.ok) {
+    throw new Error(`Batch result fetch failed: ${resultResponse.status} - ${await resultResponse.text()}`);
+  }
+
+  // Step 3: Parse the streaming response
+  const responseText = await resultResponse.text();
+  const lines = responseText.split('\n');
+  
+  let batchResults = null;
+  for (const line of lines) {
+    if (line.startsWith('data: ')) {
+      const dataContent = line.substring(6); // Remove 'data: ' prefix
+      try {
+        const parsedData = JSON.parse(dataContent);
+        // Gradio wraps results in an array, get the first element
+        if (Array.isArray(parsedData) && parsedData.length > 0) {
+          batchResults = parsedData[0];
+        } else {
+          batchResults = parsedData;
+        }
+        break;
+      } catch (parseError) {
+        console.error('Failed to parse batch data:', parseError.message);
         continue;
       }
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      const eventId = result.event_id;
-      
-      if (!eventId) {
-        throw new Error('No event_id in response: ' + JSON.stringify(result));
-      }
-
-      // Step 2: GET the results using event ID
-      const resultUrl = `${HF_API_URL}/${eventId}`;
-      const resultResponse = await fetch(resultUrl, {
-        signal: AbortSignal.timeout(60000)
-      });
-
-      if (!resultResponse.ok) {
-        throw new Error(`Result fetch failed: ${resultResponse.status}`);
-      }
-
-      // Step 3: Parse the streaming response
-      const responseText = await resultResponse.text();
-      const lines = responseText.split('\n');
-      
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const dataContent = line.substring(6);
-          try {
-            const parsedData = JSON.parse(dataContent);
-            // Gradio wraps results in an array, get the first element
-            if (Array.isArray(parsedData) && parsedData.length > 0) {
-              return parsedData[0];
-            } else {
-              return parsedData;
-            }
-          } catch (parseError) {
-            continue;
-          }
-        }
-      }
-
-      throw new Error('No data received from stream');
-
-    } catch (error) {
-      console.error(`Classification attempt ${attempt}/${maxRetries} failed:`, error.message);
-      if (attempt === maxRetries) {
-        throw error;
-      }
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
     }
   }
-}
 
-// Fallback classification function
-function fallbackClassification(reviewText, rating) {
-  const text = reviewText.toLowerCase();
-  const categories = [];
-
-  if (text.includes('click here') || text.includes('visit') || text.includes('discount') || 
-      text.includes('www.') || text.includes('http') || text.includes('promo')) {
-    categories.push('Advertisement');
+  if (!batchResults || !batchResults.batch_results) {
+    throw new Error('Invalid batch API response format: ' + JSON.stringify(batchResults));
   }
 
-  if (text.includes('!!!') || text.match(/[A-Z]{3,}/) || 
-      text.includes('free money') || text.includes('prizes')) {
-    categories.push('Spam');
-  }
+  // Merge ML classifications into reviews
+  const classifiedReviews = reviews.map((review, i) => {
+    const batchRes = batchResults.batch_results[i] || {};
+    return {
+      ...review,
+      classifications: (batchRes.predictions || []).map(p => p.label),
+      classificationScores: batchRes.all_scores || {},
+      localClassification: false,
+      classificationReason: 'ML model classification'
+    };
+  });
 
-  if (rating <= 2 && (text.includes('worst') || text.includes('terrible') || 
-      text.includes('never going') || text.includes('awful')) && 
-      text.length > 200) {
-    categories.push('Rant Without Visit');
-  }
-
-  if (text.length < 30 || text.includes('okay i guess') || 
-      text.includes('nothing special') || text.includes('meh')) {
-    categories.push('Irrelevant Content');
-  }
-
-  if (categories.length === 0) {
-    categories.push('Useful Review');
-  }
-
-  return categories;
+  return classifiedReviews;
 }
 
 async function waitForRunCompletion(runId, apiToken, actorId, maxWaitTime = 300000) {

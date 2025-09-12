@@ -1,0 +1,39 @@
+{
+  "name": "kaypoh-aunty",
+  "version": "1.0.0",
+  "description": "A web application for scraping and classifying location reviews with AI-powered sentiment analysis.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "test": "echo 'No tests specified'",
+    "scrape": "node api/scrape-reviews.js",
+    "classify": "node api/classify-review.js",
+    "serve": "http-server public -p 3000",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "reviews",
+    "scraping",
+    "sentiment-analysis",
+    "ai",
+    "classification",
+    "web-app"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.50.0",
+    "http-server": "^14.1.1",
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

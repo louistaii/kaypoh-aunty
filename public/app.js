@@ -4,7 +4,7 @@
 // For brevity, only the first and last lines are commented here.
 
 // Configuration - Update this with your Vercel deployment URL
-const API_BASE_URL = window.location.origin; // Will use same domain (works locally and in production)
+const API_BASE_URL = ''; // Use relative URLs for API calls
 
 // Detect if we're running locally
 const IS_LOCAL = window.location.hostname === 'localhost' || 
@@ -23,41 +23,55 @@ const mockReviews = [
         id: 1,
         author: "Sarah M.",
         rating: 5,
-        date: "2024-08-15",
-        text: "Amazing coffee and friendly staff! The atmosphere is perfect for working.",
-        categories: ["Useful"]
+        text: "Amazing coffee and friendly staff! I ordered their specialty latte and tried the blueberry muffin. The atmosphere is perfect for working, with plenty of outlets and comfortable seating. The staff was very attentive and refilled my water glass without asking. Would definitely recommend this place for remote work or casual meetings.",
+        categories: ["Useful"],
+        localClassification: true,
+        classificationReason: "Local rule-based classification"
     },
     {
         id: 2,
         author: "Mike T.",
         rating: 1,
-        date: "2024-08-12",
-        text: "WORST PLACE EVER!!! Never going back!!!",
-        categories: ["Rant Without Visit", "Spam"]
+        text: "I heard this place is terrible! Never been there myself but people say it's awful!!!",
+        categories: ["Rant Without Visit"],
+        localClassification: true,
+        classificationReason: "Local rule-based classification"
     },
     {
         id: 3,
         author: "Emma K.",
         rating: 4,
-        date: "2024-08-10",
-        text: "Good coffee, nice ambiance. A bit pricey but worth it for the quality.",
-        categories: ["Useful"]
+        text: "Went there last week and ordered the pasta. Good coffee, nice ambiance. Service was a bit slow but the quality made up for it. The staff was friendly and the atmosphere was cozy.",
+        categories: ["Useful"],
+        localClassification: false,
+        classificationReason: "ML model classification"
     },
     {
         id: 4,
         author: "PromoDeals123",
         rating: 5,
-        date: "2024-08-08",
-        text: "Visit our website for amazing deals! Click here: www.fake-deals.com",
-        categories: ["Advertisements"]
+        text: "Visit our website for amazing deals! Click here: www.fake-deals.com Call us now at 555-123-4567. AMAZING DEAL!!!",
+        categories: ["Advertisements", "Spam"],
+        localClassification: true,
+        classificationReason: "Local rule-based classification"
     },
     {
         id: 5,
-        author: "John D.",
+        author: "TestUser456",
+        rating: 5,
+        text: "Great!!!!! AMAZING DEAL!!! Click here now!!!",
+        categories: ["Spam"],
+        localClassification: true,
+        classificationReason: "Local rule-based classification"
+    },
+    {
+        id: 6,
+        author: "AI_Classified",
         rating: 3,
-        date: "2024-08-05",
-        text: "Okay I guess. Nothing special.",
-        categories: ["Irrelevant Content"]
+        text: "This review was classified by the ML model because it doesn't match any obvious local patterns.",
+        categories: ["Useful"],
+        localClassification: false,
+        classificationReason: "ML model classification"
     }
 ];
 
@@ -132,7 +146,7 @@ tabTest.addEventListener('click', () => {
 async function searchPlacesWithAPI(searchQuery, location = 'New York, USA') {
     try {
         console.log('Calling API with query:', searchQuery);
-        const response = await fetch(`${API_BASE_URL}/api/scrape-reviews`, {
+        const response = await fetch(`/api/scrape-reviews`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -202,6 +216,7 @@ function transformApifyData(apifyResults) {
         };
         places.push(place);
         if (item.reviews && item.reviews.length > 0) {
+            console.log('Raw API review data:', item.reviews);
             reviewsByPlace[place.id] = item.reviews
                 .filter(review => {
                     const text = review.text || review.reviewText || '';
@@ -211,7 +226,6 @@ function transformApifyData(apifyResults) {
                     id: reviewIndex + 1,
                     author: review.name || review.authorName || 'Anonymous',
                     rating: review.stars || review.rating || 0,
-                    date: review.publishAt || review.date || new Date().toISOString().split('T')[0],
                     text: review.text || review.reviewText || 'No review text',
                     categories: categorizeReview(
                         review.text || review.reviewText || '',
@@ -346,6 +360,11 @@ function displayReviews(reviews) {
             const className = cat.toLowerCase().replace(/\s+/g, '-');
             return `<span class="category-tag category-${className}">${cat}</span>`;
         }).join('');
+        
+        const classificationBadge = review.localClassification 
+            ? '<span class="classification-badge local">🔍 Local</span>'
+            : '<span class="classification-badge ml">🤖 AI</span>';
+            
         return `
         <div class="review-card" style="animation-delay: ${index * 0.1}s">
             <div class="review-header">
@@ -355,7 +374,6 @@ function displayReviews(reviews) {
                     </div>
                     <div class="reviewer-details">
                         <h4>${review.author}</h4>
-                        <div class="review-date">${formatDate(review.date)}</div>
                     </div>
                 </div>
                 <div class="review-rating">
@@ -365,6 +383,9 @@ function displayReviews(reviews) {
             <div class="review-text">${review.text}</div>
             <div class="review-categories">
                 ${categoryTags}
+                <div class="classification-indicator">
+                    ${classificationBadge}
+                </div>
             </div>
         </div>
         `;
@@ -391,15 +412,6 @@ function generateStars(rating) {
     return '★'.repeat(fullStars) + 
            (hasHalfStar ? '☆' : '') + 
            '☆'.repeat(emptyStars);
-}
-
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
-    });
 }
 
 // Test tab logic
@@ -452,7 +464,25 @@ testBtn.addEventListener('click', async () => {
         const result = await response.json();
         if (result.success && result.data && result.data.predictions) {
             const categories = result.data.predictions.map(p => p.label);
-            testResult.innerHTML = 'Classified as: ' + categories.map(cat => `<span class="category-tag category-${cat.toLowerCase().replace(/\s+/g,'-')}">${cat}</span>`).join(' ');
+            const isLocal = result.data.local_classification || false;
+            
+            // Create classification badge
+            const classificationBadge = isLocal 
+                ? '<span class="classification-badge local">🔍 Local</span>'
+                : '<span class="classification-badge ml">🤖 AI</span>';
+            
+            // Create category tags
+            const categoryTags = categories.map(cat => 
+                `<span class="category-tag category-${cat.toLowerCase().replace(/\s+/g,'-')}">${cat}</span>`
+            ).join(' ');
+            
+            testResult.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <span>Classified as:</span>
+                    ${classificationBadge}
+                </div>
+                <div>${categoryTags}</div>
+            `;
         } else {
             testResult.innerHTML = '<span style="color:#c62828">Classification failed.</span>';
         }
