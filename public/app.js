@@ -217,6 +217,15 @@ function transformApifyData(apifyResults) {
         places.push(place);
         if (item.reviews && item.reviews.length > 0) {
             console.log('Raw API review data:', item.reviews);
+            
+            // Debug: Check specific review properties from API
+            console.log('Review properties check:', item.reviews.map(r => ({
+                text: (r.text || r.reviewText || '').substring(0, 30) + '...',
+                hasClassifications: !!r.classifications,
+                localClassification: r.localClassification,
+                classificationReason: r.classificationReason
+            })));
+            
             reviewsByPlace[place.id] = item.reviews
                 .filter(review => {
                     const text = review.text || review.reviewText || '';
@@ -227,11 +236,15 @@ function transformApifyData(apifyResults) {
                     author: review.name || review.authorName || 'Anonymous',
                     rating: review.stars || review.rating || 0,
                     text: review.text || review.reviewText || 'No review text',
-                    categories: categorizeReview(
+                    // Use the classifications from the API if available, otherwise fall back to local categorization
+                    categories: review.classifications || categorizeReview(
                         review.text || review.reviewText || '',
                         review.stars || review.rating || 0,
                         review.name || review.authorName || ''
-                    )
+                    ),
+                    // Preserve classification metadata from the API
+                    localClassification: review.localClassification ?? false,
+                    classificationReason: review.classificationReason || 'No classification info'
                 }));
         }
     });
@@ -257,7 +270,30 @@ async function handleSearch() {
     showLoading('Scraping Google Maps reviews...');
     try {
         const apifyResults = await searchPlacesWithAPI(finalQuery, location);
+        
+        // Debug: Log raw API response to see classification properties
+        console.log('[UI] Raw API response:', apifyResults);
+        console.log('[UI] First place reviews with classification properties:', 
+            apifyResults[0]?.reviews?.map(r => ({
+                text: (r.text || r.reviewText || '').substring(0, 30) + '...',
+                localClassification: r.localClassification,
+                classifications: r.classifications,
+                classificationReason: r.classificationReason
+            }))
+        );
+        
         const { places, reviewsByPlace: reviews } = transformApifyData(apifyResults);
+        
+        // Debug: Check if localClassification flags are preserved after transformation
+        console.log('After transformApifyData, checking localClassification flags:');
+        Object.values(reviews).forEach((placeReviews, placeIndex) => {
+            console.log(`Place ${placeIndex + 1} reviews:`, placeReviews.map(r => ({
+                text: r.text.substring(0, 30) + '...',
+                localClassification: r.localClassification,
+                categories: r.categories
+            })));
+        });
+        
         allPlaces = places;
         reviewsByPlace = reviews;
         displayPlaces(places);
@@ -351,6 +387,15 @@ window.selectPlace = function(placeId) {
 }
 
 function displayReviews(reviews) {
+    // Debug: Check classification flags in UI
+    console.log('[UI] Review classification flags:', 
+        reviews.map(r => ({
+            text: r.text.substring(0, 30) + '...',
+            localClassification: r.localClassification,
+            categories: r.categories
+        }))
+    );
+    
     if (reviews.length === 0) {
         reviewsGrid.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">No reviews match the current filters.</p>';
         return;
@@ -362,8 +407,8 @@ function displayReviews(reviews) {
         }).join('');
         
         const classificationBadge = review.localClassification 
-            ? '<span class="classification-badge local">🔍 Local</span>'
-            : '<span class="classification-badge ml">🤖 AI</span>';
+            ? `<span class="classification-badge local" data-tooltip="${review.classificationReason || 'Classified by rule-based filters'}">🔍 Rules</span>`
+            : `<span class="classification-badge ml" data-tooltip="${review.classificationReason || 'This review was classified by our pretrained model'}">🤖 Model</span>`;
             
         return `
         <div class="review-card" style="animation-delay: ${index * 0.1}s">
@@ -414,13 +459,13 @@ function generateStars(rating) {
            '☆'.repeat(emptyStars);
 }
 
-// Test tab logic
+
 const testBtn = document.getElementById('testBtn');
 const testInput = document.getElementById('testInput');
 const testResult = document.getElementById('testResult');
 const testStarRating = document.getElementById('testStarRating');
 let testSelectedRating = 0;
-// Star rating click/hover logic (fixed)
+
 if (testStarRating) {
     const stars = testStarRating.querySelectorAll('.star');
     stars.forEach((star, idx) => {
@@ -450,7 +495,6 @@ testBtn.addEventListener('click', async () => {
     }
     testResult.innerHTML = '<span style="color:#888">Classifying...</span>';
     try {
-        // Use same API base as rest of app
         const apiUrl = window.location.origin + '/api/classify-review';
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -468,8 +512,8 @@ testBtn.addEventListener('click', async () => {
             
             // Create classification badge
             const classificationBadge = isLocal 
-                ? '<span class="classification-badge local">🔍 Local</span>'
-                : '<span class="classification-badge ml">🤖 AI</span>';
+                ? `<span class="classification-badge local" data-tooltip="${result.data.classification_reason || 'Classified by rule-based filters'}">🔍 Rules</span>`
+                : `<span class="classification-badge ml" data-tooltip="${result.data.classification_reason || 'This review was classified by our pretrained model'}">🤖 Model</span>`;
             
             // Create category tags
             const categoryTags = categories.map(cat => 
@@ -496,5 +540,5 @@ searchInput.addEventListener('input', (e) => {
         if (mainContainer) mainContainer.classList.remove('shift-up');
     }
 });
-// On load, show search scope only in search tab
+
 if (searchScopeContainer) searchScopeContainer.style.display = '';

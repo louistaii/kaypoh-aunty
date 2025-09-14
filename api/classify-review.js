@@ -3,6 +3,20 @@
 
 import { preClassifyReview } from './local-classifier.js';
 
+function createMLClassificationReason(categories, scores) {
+  if (categories.length === 0) {
+    return 'No classification found';
+  }
+  
+  // Find the highest confidence score for the predicted categories
+  const categoryScores = categories.map(cat => {
+    const score = scores[cat] || scores[`${cat} Review`] || 0; // Handle both "Useful" and "Useful Review"
+    return `${cat}: ${(score * 100).toFixed(1)}%`;
+  });
+  
+  return `Model prediction: ${categoryScores.join(', ')}`;
+}
+
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -51,7 +65,7 @@ export default async function handler(req, res) {
           predictions: localClassification.categories.map(cat => ({ label: cat })),
           all_scores: { [localClassification.categories[0]]: localClassification.confidence },
           local_classification: true,
-          reason: localClassification.reason
+          classification_reason: localClassification.reason
         },
         message: 'Review classified locally'
       });
@@ -66,7 +80,10 @@ export default async function handler(req, res) {
       data: {
         ...classification,
         local_classification: false,
-        reason: 'ML model classification'
+        classification_reason: createMLClassificationReason(
+          classification.predictions?.map(p => p.label) || [], 
+          classification.all_scores || {}
+        )
       },
       message: 'Review classified successfully'
     });

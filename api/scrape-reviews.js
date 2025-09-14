@@ -1,5 +1,4 @@
 // api/scrape-reviews.js
-// This file should be placed in the 'api' folder in your Vercel project root
 
 import { preClassifyBatch } from './local-classifier.js';
 
@@ -127,6 +126,14 @@ async function classifyReviewsInResults(results) {
       });
 
       let allClassifiedReviews = [...localResults.locallyClassified];
+      
+      console.log(`[${new Date().toISOString()}] Local classification flags check:`, 
+        localResults.locallyClassified.map(r => ({
+          text: (r.text || r.reviewText || '').substring(0, 30) + '...',
+          localClassification: r.localClassification,
+          categories: r.classifications
+        }))
+      );
 
       // Step 2: Send only unclassified reviews to ML model
       if (localResults.needsMLClassification.length > 0) {
@@ -136,6 +143,15 @@ async function classifyReviewsInResults(results) {
         try {
           const mlClassifiedReviews = await classifyWithMLModel(localResults.needsMLClassification, threshold);
           console.log(`[${new Date().toISOString()}] *** AI MODEL RETURNED ${mlClassifiedReviews.length} CLASSIFICATIONS ***`);
+          
+          // Debug: Log AI model categories to check normalization
+          console.log(`[${new Date().toISOString()}] AI model categories after normalization:`, 
+            mlClassifiedReviews.map(r => ({
+              text: (r.text || r.reviewText || '').substring(0, 30) + '...',
+              categories: r.classifications
+            }))
+          );
+          
           allClassifiedReviews = allClassifiedReviews.concat(mlClassifiedReviews);
         } catch (error) {
           console.error(`ML classification failed for ${place.title}:`, error.message);
@@ -153,15 +169,30 @@ async function classifyReviewsInResults(results) {
         console.log(`[${new Date().toISOString()}] *** NO REVIEWS SENT TO AI MODEL - ALL ${localResults.summary.locallyClassified} WERE CLASSIFIED LOCALLY ***`);
       }
 
-      // Restore original order of reviews
-      const reviewOrder = place.reviews.map(r => r.text || r.reviewText || '');
+      // Restore original order of reviews by creating a more reliable mapping
+      const reviewOrderMap = new Map();
+      place.reviews.forEach((review, index) => {
+        const reviewKey = `${review.text || review.reviewText || ''}_${review.author || review.authorName || ''}_${review.rating || 0}`;
+        reviewOrderMap.set(reviewKey, index);
+      });
+      
       allClassifiedReviews.sort((a, b) => {
-        const aIndex = reviewOrder.indexOf(a.text || a.reviewText || '');
-        const bIndex = reviewOrder.indexOf(b.text || b.reviewText || '');
+        const aKey = `${a.text || a.reviewText || ''}_${a.author || a.authorName || ''}_${a.rating || 0}`;
+        const bKey = `${b.text || b.reviewText || ''}_${b.author || b.authorName || ''}_${b.rating || 0}`;
+        const aIndex = reviewOrderMap.get(aKey) ?? 0;
+        const bIndex = reviewOrderMap.get(bKey) ?? 0;
         return aIndex - bIndex;
       });
 
       classifiedPlace.reviews = allClassifiedReviews;
+      
+      console.log(`[${new Date().toISOString()}] Final review classification flags:`, 
+        allClassifiedReviews.map(r => ({
+          text: (r.text || r.reviewText || '').substring(0, 30) + '...',
+          localClassification: r.localClassification,
+          categories: r.classifications
+        }))
+      );
       classifiedPlace.classificationSummary = {
         ...localResults.summary,
         mlClassified: localResults.needsMLClassification.length
@@ -173,10 +204,8 @@ async function classifyReviewsInResults(results) {
 }
 
 async function classifyWithMLModel(reviews, threshold) {
-  // Fixed: Use the correct Gradio API endpoint for batch processing
   const HF_BATCH_URL = 'https://louistzx-kaypoh-aunty.hf.space/gradio_api/call/classify_batch';
-  
-  // Prepare batch payload
+
   const reviewTexts = reviews.map(r => r.text || r.reviewText || '');
   
   // Step 1: POST to get event ID
@@ -235,7 +264,7 @@ async function classifyWithMLModel(reviews, threshold) {
   let batchResults = null;
   for (const line of lines) {
     if (line.startsWith('data: ')) {
-      const dataContent = line.substring(6); // Remove 'data: ' prefix
+      const dataContent = line.substring(6); 
       try {
         const parsedData = JSON.parse(dataContent);
         // Gradio wraps results in an array, get the first element
@@ -259,16 +288,41 @@ async function classifyWithMLModel(reviews, threshold) {
   // Merge ML classifications into reviews
   const classifiedReviews = reviews.map((review, i) => {
     const batchRes = batchResults.batch_results[i] || {};
+    
+    // Normalize category names to match local classifier styling
+    const normalizedCategories = (batchRes.predictions || []).map(p => {
+      const label = p.label;
+      // Convert "Useful Review" to "Useful" to match local classifier styling
+      if (label === "Useful Review") {
+        return "Useful";
+      }
+      return label;
+    });
+    
     return {
       ...review,
-      classifications: (batchRes.predictions || []).map(p => p.label),
+      classifications: normalizedCategories,
       classificationScores: batchRes.all_scores || {},
       localClassification: false,
-      classificationReason: 'ML model classification'
+      classificationReason: createMLClassificationReason(normalizedCategories, batchRes.all_scores || {})
     };
   });
 
   return classifiedReviews;
+}
+
+function createMLClassificationReason(categories, scores) {
+  if (categories.length === 0) {
+    return 'No classification found';
+  }
+  
+  // Find the highest confidence score for the predicted categories
+  const categoryScores = categories.map(cat => {
+    const score = scores[cat] || scores[`${cat} Review`] || 0; // Handle both "Useful" and "Useful Review"
+    return `${cat}: ${(score * 100).toFixed(1)}%`;
+  });
+  
+  return `Model prediction: ${categoryScores.join(', ')}`;
 }
 
 async function waitForRunCompletion(runId, apiToken, actorId, maxWaitTime = 300000) {
