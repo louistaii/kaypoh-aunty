@@ -1,6 +1,22 @@
 // api/classify-review.js
 // Separate endpoint for classifying individual reviews (used by the test tab)
 
+import { preClassifyReview } from './local-classifier.js';
+
+function createMLClassificationReason(categories, scores) {
+  if (categories.length === 0) {
+    return 'No classification found';
+  }
+  
+  // Find the highest confidence score for the predicted categories
+  const categoryScores = categories.map(cat => {
+    const score = scores[cat] || scores[`${cat} Review`] || 0; // Handle both "Useful" and "Useful Review"
+    return `${cat}: ${(score * 100).toFixed(1)}%`;
+  });
+  
+  return `Model prediction: ${categoryScores.join(', ')}`;
+}
+
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -30,13 +46,45 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log(`[${new Date().toISOString()}] Classifying single review`);
+    console.log(`[${new Date().toISOString()}] Classifying single review: "${reviewText.trim().substring(0, 50)}..."`);
     
+    // Step 1: Try local classification first
+    const localClassification = preClassifyReview(reviewText.trim(), rating || 0, '');
+    
+    console.log(`[${new Date().toISOString()}] Local classification result:`, {
+      isClassified: localClassification.isClassified,
+      categories: localClassification.categories,
+      reason: localClassification.reason
+    });
+    
+    if (localClassification.isClassified) {
+      console.log(`[${new Date().toISOString()}] Local classification successful:`, localClassification.categories);
+      return res.status(200).json({ 
+        success: true, 
+        data: {
+          predictions: localClassification.categories.map(cat => ({ label: cat })),
+          all_scores: { [localClassification.categories[0]]: localClassification.confidence },
+          local_classification: true,
+          classification_reason: localClassification.reason
+        },
+        message: 'Review classified locally'
+      });
+    }
+    
+    // Step 2: If not locally classified, use ML model
+    console.log(`[${new Date().toISOString()}] Sending to ML model for classification`);
     const classification = await classifySingleReview(reviewText.trim(), threshold);
     
     return res.status(200).json({ 
       success: true, 
-      data: classification,
+      data: {
+        ...classification,
+        local_classification: false,
+        classification_reason: createMLClassificationReason(
+          classification.predictions?.map(p => p.label) || [], 
+          classification.all_scores || {}
+        )
+      },
       message: 'Review classified successfully'
     });
 
@@ -60,16 +108,22 @@ async function classifySingleReview(reviewText, threshold = 0.5, maxRetries = 3)
       console.log(`[${new Date().toISOString()}] Attempt ${attempt}/${maxRetries}: Calling ${HF_API_URL}`);
       
       // Step 1: POST to get event ID
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
       const response = await fetch(HF_API_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
         },
         body: JSON.stringify({
           data: [reviewText, threshold]
         }),
-        signal: AbortSignal.timeout(30000)
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (response.status === 429) {
         const delay = Math.pow(2, attempt) * 2000;
@@ -100,9 +154,17 @@ async function classifySingleReview(reviewText, threshold = 0.5, maxRetries = 3)
 
       // Step 2: GET the results using event ID
       const resultUrl = `${HF_API_URL}/${eventId}`;
+      const resultController = new AbortController();
+      const resultTimeoutId = setTimeout(() => resultController.abort(), 60000);
+      
       const resultResponse = await fetch(resultUrl, {
-        signal: AbortSignal.timeout(60000)
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        },
+        signal: resultController.signal
       });
+
+      clearTimeout(resultTimeoutId);
 
       if (!resultResponse.ok) {
         throw new Error(`Result fetch failed: ${resultResponse.status} - ${await resultResponse.text()}`);
@@ -134,7 +196,12 @@ async function classifySingleReview(reviewText, threshold = 0.5, maxRetries = 3)
       throw new Error('No data received from stream');
 
     } catch (error) {
-      console.error(`Classification attempt ${attempt}/${maxRetries} failed:`, error.message);
+      console.error(`Classification attempt ${attempt}/${maxRetries} failed:`, {
+        message: error.message,
+        name: error.name,
+        cause: error.cause,
+        stack: error.stack
+      });
       if (attempt === maxRetries) {
         throw error;
       }
