@@ -505,6 +505,57 @@ body {
 .star.hovered {
     color: #ffc107;
 }
+.navbar {
+    width: 100%;
+    background: #fffbe7;
+    border-bottom: 1px solid #f3e7b7;
+    padding: 16px 0 12px 0;
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.nav-link {
+    color: #bfa100;
+    text-decoration: none;
+    font-size: 1.2rem;
+    font-weight: 600;
+    padding: 6px 18px;
+    border-radius: 8px;
+    transition: background 0.2s, color 0.2s;
+}
+.nav-link.active, .nav-link:hover {
+    background: #fff3b0;
+    color: #7a5c00;
+}
+.how-it-works-container {
+    max-width: 800px;
+    margin: 40px auto;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+    padding: 40px 32px;
+}
+.how-it-works-container h1 {
+    font-size: 2.2rem;
+    margin-bottom: 18px;
+    color: #bfa100;
+}
+.how-it-works-container h2 {
+    font-size: 1.3rem;
+    margin-top: 28px;
+    color: #7a5c00;
+}
+.how-it-works-container ol, .how-it-works-container ul {
+    margin-left: 24px;
+    margin-bottom: 18px;
+    font-size: 1.08rem;
+}
+.how-it-works-container li {
+    margin-bottom: 10px;
+}
 @media (max-width: 768px) {
     .container {
         padding: 10px;

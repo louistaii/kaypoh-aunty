@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How it Works - Kaypoh Aunty</title>
+    <link rel="icon" type="image/x-icon" href="./media/icon.ico">
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="how-it-works.html" class="nav-link active">How it Works</a>
+    </nav>
+    <div class="how-it-works-container">
+        <h1>How it Works</h1>
+        <ol>
+            <li><strong>Input a Name:</strong> Enter the name of any <strong>business, landmark, or location</strong> you want to analyze into the search bar.</li>
+            <li><strong>Scrape Reviews via Apify:</strong> The backend triggers an integrated <strong>Apify API</strong> call. Apify searches for the specified location on Google Maps and scrapes its reviews in real-time.</li>
+            <li><strong>Classify Each Review:</strong> As reviews are collected, each one is passed through the Kaypoh Aunty classification engine.</li>
+            <li><strong>View Results:</strong> The application displays the scraped reviews along with the labels assigned by the classifier, allowing for immediate analysis and filtering.</li>
+        </ol>
+        <h2>Classification Categories</h2>
+        <ul>
+            <li><strong>Advertisements:</strong> Identifies promotional content.</li>
+            <li><strong>Spam:</strong> Filters out undesirable or low-quality content.</li>
+            <li><strong>Rant Without Visit:</strong> Catches feedback from users who may not have had a firsthand experience.</li>
+            <li><strong>Irrelevant Content:</strong> Flags reviews that are nonsensical or do not contribute meaningful feedback.</li>
+            <li><strong>Useful Reviews:</strong> Recognizes detailed, helpful reviews that can inform business decisions or provide insights to other users.</li>
+        </ul>
+        <h2>The Classification Engine: A Two-Stage Process</h2>
+        <ol>
+            <li><strong>Rule-Based Classification:</strong> A fast, rule-based classifier written in JavaScript runs first, catching obvious cases using predefined patterns and keywords.</li>
+            <li><strong>AI Model Classification:</strong> If a review does not match any rules, it is sent to a fine-tuned DistilBERT model hosted on Hugging Face for nuanced analysis.</li>
+        </ol>
+    </div>
+</body>
+</html>
