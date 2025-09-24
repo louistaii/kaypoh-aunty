@@ -1,3 +1,6 @@
+<p align="center">
+  <img src="public/media/logo.png" alt="Kaypoh Aunty Logo" width="500"/>
+</p>
 
 # Kaypoh Aunty - Google Review Classifier
 
@@ -20,20 +23,6 @@ The entire process, from scraping to analysis, is streamlined within the web app
 
 ---
 
-## ⚙️ The Classification Engine: A Two-Stage Process
-
-To ensure both speed and accuracy, every review is processed through a two-stage pipeline. A single review can be assigned **multiple labels** if it meets the criteria for different categories.
-
-### Stage 1: Rule-Based Classification
-
-For immediate and efficient filtering, a fast, rule-based classifier written in JavaScript runs first. This initial step is designed to quickly catch obvious cases using predefined patterns and keywords.
-
-### Stage 2: AI Model Classification (via Hugging Face API)
-
-If a review does not match any of the predefined rules, it is then sent for a more nuanced analysis. The application makes an **API call** to a powerful, fine-tuned **DistilBERT model** hosted on the Hugging Face Hub. DistilBERT is a smaller, faster, and lighter version of BERT, making it ideal for a responsive web application as it retains over 95% of BERT's language understanding capabilities while being significantly more performant.
-
----
-
 ## 🧐 Classification Categories
 
 Kaypoh Aunty classifies reviews into the following categories:
@@ -46,6 +35,28 @@ Kaypoh Aunty classifies reviews into the following categories:
 
 ---
 
+## ⚙️ The Classification Engine: A Two-Stage Process
+
+To ensure both speed and accuracy, every review is processed through a two-stage pipeline. A single review can be assigned **multiple labels** if it meets the criteria for different categories.
+
+### Stage 1: Rule-Based Classification
+
+For immediate and efficient filtering, a fast, rule-based classifier written in JavaScript runs first. This initial step is designed to quickly catch obvious cases using predefined patterns and keywords.
+
+| Category | Triggers |
+| :--- | :--- |
+| **Advertisements** | URLs, phone numbers, promotional language + call-to-action. |
+| **Spam** | Excessive punctuation & caps, spam-like usernames, very short generic text. |
+| **Rant Without Visit** | Phrases like "never visited," hearsay language, lack of personal details. |
+| **Irrelevant Content**| Extremely short text, test content, standalone questions, gibberish/symbols. |
+| **Useful Reviews** | Detailed text, specific details mentioned, recommendation language, balanced opinion. |
+
+### Stage 2: AI Model Classification (via Hugging Face API)
+
+If a review does not match any of the predefined rules, it is then sent for a more nuanced analysis. The application makes an **API call** to a powerful, fine-tuned **DistilBERT model** hosted on the Hugging Face Hub. DistilBERT is a smaller, faster, and lighter version of BERT, making it ideal for a responsive web application as it retains over 95% of BERT's language understanding capabilities while being significantly more performant.
+
+---
+
 ## 🤖 AI Model Training and Dataset
 
 The high accuracy of the classification model is the result of a meticulous training process designed to overcome real-world data challenges.
@@ -54,9 +65,18 @@ The high accuracy of the classification model is the result of a meticulous trai
 
 The model was trained on a large dataset of Google local reviews from the **UC San Diego McAuley Lab**, available [here](https://mcauleylab.ucsd.edu/public_datasets/gdrive/googlelocal/).
 
+### Textual Feature Engineering
+
+To give the model more context, structured data was engineered into the text itself. Features like the review's `rating` and whether it included pictures (`has_pics`) were converted into a string and appended to the original review text, separated by a special `[SEP]` token.
+
+**Example of Enriched Text Input:**
+`"Very good place nice things... [SEP] rating:5.0 has_pics:0"`
+
+This technique allows the **DistilBERT** model to learn the meaning and importance of these features in relation to the review text.
+
 ### The Challenge: Severe Class Imbalance
 
-After analyzing over 1 million reviews, the initial distribution of labeled data was extremely imbalanced:
+After analyzing over 4 thousand of reviews, the initial distribution of labeled data was extremely imbalanced:
 
 *   **Useful:** 3,910 samples
 *   **Spam:** 87 samples
@@ -68,7 +88,7 @@ Training a model on such a skewed dataset would lead to poor performance, as the
 
 ### The Solution: LLM-Generated Synthetic Data
 
-To solve the imbalance, a **Large Language Model (LLM)** was used to generate high-quality, realistic synthetic data for the underrepresented categories. This process involved creating thousands of new, diverse examples for Spam, Irrelevant, Rant, and Advertisement reviews, resulting in a perfectly balanced class composition:
+To solve the imbalance, a **Large Language Model (LLM)** was used to generate high quality, realistic synthetic data for the underrepresented categories. This process involved creating thousands of new, diverse examples for Spam, Irrelevant, Rant, and Advertisement reviews, resulting in a perfectly balanced class composition:
 
 *   **Advertisement:** ~3,914 samples
 *   **Rant without visit:** ~3,920 samples
@@ -77,15 +97,6 @@ To solve the imbalance, a **Large Language Model (LLM)** was used to generate hi
 *   **Useful:** 3,910 samples
 
 This crucial step ensured the model was trained on an equal number of examples for each category, allowing it to learn the unique features of each class effectively.
-
-### Textual Feature Engineering
-
-To give the model more context, structured data was engineered into the text itself. Features like the review's `rating` and whether it included pictures (`has_pics`) were converted into a string and appended to the original review text, separated by a special `[SEP]` token.
-
-**Example of Enriched Text Input:**
-`"Very good place nice things... [SEP] rating:5.0 has_pics:0"`
-
-This technique allows the **DistilBERT** model to learn the meaning and importance of these features in relation to the review text.
 
 ### Final Performance
 
