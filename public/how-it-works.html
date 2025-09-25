@@ -13,26 +13,147 @@
         <a href="how-it-works.html" class="nav-link active">How it Works</a>
     </nav>
     <div class="how-it-works-container">
-        <h1>How it Works</h1>
-        <ol>
-            <li><strong>Input a Name:</strong> Enter the name of any <strong>business, landmark, or location</strong> you want to analyze into the search bar.</li>
-            <li><strong>Scrape Reviews via Apify:</strong> The backend triggers an integrated <strong>Apify API</strong> call. Apify searches for the specified location on Google Maps and scrapes its reviews in real-time.</li>
-            <li><strong>Classify Each Review:</strong> As reviews are collected, each one is passed through the Kaypoh Aunty classification engine.</li>
-            <li><strong>View Results:</strong> The application displays the scraped reviews along with the labels assigned by the classifier, allowing for immediate analysis and filtering.</li>
-        </ol>
-        <h2>Classification Categories</h2>
-        <ul>
-            <li><strong>Advertisements:</strong> Identifies promotional content.</li>
-            <li><strong>Spam:</strong> Filters out undesirable or low-quality content.</li>
-            <li><strong>Rant Without Visit:</strong> Catches feedback from users who may not have had a firsthand experience.</li>
-            <li><strong>Irrelevant Content:</strong> Flags reviews that are nonsensical or do not contribute meaningful feedback.</li>
-            <li><strong>Useful Reviews:</strong> Recognizes detailed, helpful reviews that can inform business decisions or provide insights to other users.</li>
-        </ul>
-        <h2>The Classification Engine: A Two-Stage Process</h2>
-        <ol>
-            <li><strong>Rule-Based Classification:</strong> A fast, rule-based classifier written in JavaScript runs first, catching obvious cases using predefined patterns and keywords.</li>
-            <li><strong>AI Model Classification:</strong> If a review does not match any rules, it is sent to a fine-tuned DistilBERT model hosted on Hugging Face for nuanced analysis.</li>
-        </ol>
+        <div class="how-it-works-header">
+            <h1>How Kaypoh Aunty Works</h1>
+            <p class="intro-text">
+                <strong>Kaypoh Aunty</strong> is a sophisticated web application that automatically scrapes and classifies Google Maps reviews for any business or location. 
+                The name "Kaypoh Aunty" is a playful nod to the Singaporean colloquial term for a nosy, inquisitive person, reflecting the application's ability to thoroughly examine and understand user-generated content.
+            </p>
+        </div>
+
+        <section class="workflow-section">
+            <h2>🚀 User Workflow</h2>
+            <div class="workflow-steps">
+                <div class="workflow-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Input a Name</h3>
+                        <p>Enter the name of any <strong>business, landmark, or location</strong> you want to analyze into the search bar.</p>
+                    </div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Scrape Reviews via Apify</h3>
+                        <p>The backend triggers an integrated <strong>Apify API</strong> call. Apify searches for the specified location on Google Maps and scrapes its reviews in real-time.</p>
+                    </div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Classify Each Review</h3>
+                        <p>As reviews are collected, each one is passed through the Kaypoh Aunty classification engine using our two-stage process.</p>
+                    </div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>View Results</h3>
+                        <p>The application displays the scraped reviews along with the labels assigned by the classifier, allowing for immediate analysis and filtering.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="categories-section">
+            <h2>🧐 Classification Categories</h2>
+            <p>Kaypoh Aunty classifies reviews into the following categories. A single review can be assigned <strong>multiple labels</strong> if it meets the criteria for different categories:</p>
+            <div class="categories-grid">
+                <div class="category-card category-advertisements">
+                    <h3>🛍️ Advertisements</h3>
+                    <p>Identifies promotional content, URLs, phone numbers, and marketing language with call-to-action.</p>
+                </div>
+                <div class="category-card category-spam">
+                    <h3>🚫 Spam</h3>
+                    <p>Filters out undesirable content with excessive punctuation, caps, spam-like usernames, or generic text.</p>
+                </div>
+                <div class="category-card category-rant-without-visit">
+                    <h3>😤 Rant Without Visit</h3>
+                    <p>Catches feedback from users who may not have had a firsthand experience, using phrases like "never visited" or hearsay language.</p>
+                </div>
+                <div class="category-card category-irrelevant-content">
+                    <h3>❓ Irrelevant Content</h3>
+                    <p>Flags reviews that are nonsensical, extremely short, test content, standalone questions, or contain gibberish.</p>
+                </div>
+                <div class="category-card category-useful">
+                    <h3>✅ Useful Reviews</h3>
+                    <p>Recognizes detailed, helpful reviews with specific details, recommendation language, and balanced opinions.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="engine-section">
+            <h2>⚙️ The Classification Engine: A Two-Stage Process</h2>
+            <p>To ensure both speed and accuracy, every review is processed through a sophisticated two-stage pipeline:</p>
+            
+            <div class="stage-container">
+                <div class="stage-card">
+                    <h3>Stage 1: Rule-Based Classification</h3>
+                    <p>A fast, rule-based classifier written in JavaScript runs first, designed to quickly catch obvious cases using predefined patterns and keywords.</p>
+                    <div class="stage-details">
+                        <h4>Detection Triggers:</h4>
+                        <ul>
+                            <li><strong>Advertisements:</strong> URLs, phone numbers, promotional language + call-to-action</li>
+                            <li><strong>Spam:</strong> Excessive punctuation & caps, spam-like usernames, very short generic text</li>
+                            <li><strong>Rant Without Visit:</strong> Phrases like "never visited," hearsay language, lack of personal details</li>
+                            <li><strong>Irrelevant Content:</strong> Extremely short text, test content, standalone questions, gibberish/symbols</li>
+                            <li><strong>Useful Reviews:</strong> Detailed text, specific details mentioned, recommendation language, balanced opinion</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="stage-card">
+                    <h3>Stage 2: AI Model Classification</h3>
+                    <p>If a review doesn't match predefined rules, it's sent to a fine-tuned <strong>DistilBERT model</strong> hosted on Hugging Face for nuanced analysis.</p>
+                    <div class="stage-details">
+                        <h4>Why DistilBERT?</h4>
+                        <p>DistilBERT is a smaller, faster, and lighter version of BERT that retains over 95% of BERT's language understanding capabilities while being significantly more performant for web applications.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="model-section">
+            <h2>🤖 AI Model Training & Performance</h2>
+            
+            <div class="training-info">
+                <h3>Dataset & Feature Engineering</h3>
+                <p>The model was trained on a large dataset of Google local reviews from the <strong>UC San Diego McAuley Lab</strong>. To give the model more context, structured data like review ratings and photo presence were engineered into the text:</p>
+                <div class="code-example">
+                    <code>"Very good place nice things... [SEP] rating:5.0 has_pics:0"</code>
+                </div>
+            </div>
+
+            <div class="challenge-solution">
+                <h3>The Challenge: Severe Class Imbalance</h3>
+                <p>Initial data distribution was extremely imbalanced with 3,910 "Useful" samples but only 4 "Advertisement" samples. This would lead to poor model performance.</p>
+                
+                <h3>The Solution: LLM-Generated Synthetic Data</h3>
+                <p>A Large Language Model was used to generate high-quality, realistic synthetic data for underrepresented categories, resulting in a perfectly balanced dataset of ~3,900-4,000 samples per category.</p>
+            </div>
+
+            <div class="performance-metrics">
+                <h3>🎯 Final Performance</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value">99.64%</div>
+                        <div class="metric-label">Overall F1-Score</div>
+                        <div class="metric-description">Outstanding balance between precision and recall</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">99.57%</div>
+                        <div class="metric-label">Perfect Match Accuracy</div>
+                        <div class="metric-description">Exact label combination prediction accuracy</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="cta-section">
+            <h2>Ready to Try Kaypoh Aunty?</h2>
+            <p>Experience the power of intelligent review classification for yourself!</p>
+            <a href="index.html" class="cta-button">Start Analyzing Reviews</a>
+        </div>
     </div>
 </body>
 </html>
