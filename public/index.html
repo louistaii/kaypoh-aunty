@@ -15,7 +15,7 @@
     <div class="container" id="mainContainer">
         <div class="header">
             <img src="./media/logo.png" alt="Kaypoh Aunty Logo" class="logo-img">
-            <p id="headerTagline">Kaypoh Aunties, the best source for reviews!</p>
+            <p id="headerTagline">Need a useful review? Aunty is here for you!</p>
         </div>
 
         <div class="search-section" id="searchSection">
@@ -104,13 +104,13 @@
     document.addEventListener('DOMContentLoaded', function() {
         const tabSearch = document.getElementById('tabSearch');
         const tabTest = document.getElementById('tabTest');
-        const headerTagline = document.getElementById('headerTagline');
+        const headerTagline = document.getElementById('headerTagline'); 
         if (tabSearch && tabTest && headerTagline) {
             tabSearch.addEventListener('click', function() {
-                headerTagline.textContent = "Kaypoh Aunties, the best source for reviews!";
+                headerTagline.textContent = "Need a useful review? Aunty is here for you!";
             });
             tabTest.addEventListener('click', function() {
-                headerTagline.textContent = "Don't believe Auntie? Come test me lah!";
+                headerTagline.textContent = "Test my skills with your custom reviews!";
             });
         }
 
