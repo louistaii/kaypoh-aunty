@@ -78,6 +78,7 @@ const mockReviews = [
 // DOM elements
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
+const headerElement = document.querySelector('.header');
 const placesList = document.getElementById('placesList');
 const reviewsSection = document.getElementById('reviewsSection');
 const reviewsGrid = document.getElementById('reviewsGrid');
@@ -255,8 +256,7 @@ function transformApifyData(apifyResults) {
 async function handleSearch() {
     const query = searchInput.value.trim();
     if (!query) return;
-    // Shift up the search bar
-    if (mainContainer) mainContainer.classList.add('shift-up');
+    // Animation handled by CSS
     // Determine search scope
     let finalQuery = query;
     let location = '';
@@ -318,8 +318,7 @@ async function handleSearch() {
             displayPlaces(results);
         }, 2000);
     }
-    // Shift the container up
-    mainContainer.classList.add('shift-up');
+    // Animation handled by CSS
 }
 
 function showLoading(message = 'Loading...') {
@@ -537,66 +536,23 @@ testBtn.addEventListener('click', async () => {
 searchInput.addEventListener('input', (e) => {
     if (e.target.value.length === 0) {
         placesList.classList.remove('show');
-        if (mainContainer) mainContainer.classList.remove('shift-up');
     }
 });
 
 if (searchScopeContainer) searchScopeContainer.style.display = '';
 
-// Image loading and animation initialization
+// Simple animation fallback for very slow connections
 function initializePageAnimations() {
-    const logoImg = document.querySelector('.logo-img');
-    const header = document.querySelector('.header');
     const searchSection = document.querySelector('.search-section');
     
-    if (!logoImg || !header || !searchSection) {
-        // If elements don't exist, add fallback class to body
-        document.body.classList.add('no-animations');
-        return;
-    }
+    if (!searchSection) return;
     
-    let animationsTriggered = false;
-    
-    // Function to trigger animations
-    function triggerAnimations() {
-        if (animationsTriggered) return;
-        animationsTriggered = true;
-        
-        header.classList.add('loaded');
-        searchSection.classList.add('loaded');
-    }
-    
-    // Preload the image to ensure it's available
-    const img = new Image();
-    img.onload = triggerAnimations;
-    img.onerror = triggerAnimations;
-    
-    // Check if image is already loaded (cached)
-    if (logoImg.complete && logoImg.naturalHeight !== 0) {
-        triggerAnimations();
-    } else {
-        // Set the source to trigger loading
-        img.src = logoImg.src;
-        
-        // Also listen to the actual img element
-        logoImg.addEventListener('load', triggerAnimations);
-        logoImg.addEventListener('error', triggerAnimations);
-        
-        // Fallback: trigger animations after 2 seconds regardless
-        setTimeout(() => {
-            if (!animationsTriggered) {
-                triggerAnimations();
-            }
-        }, 2000);
-    }
-    
-    // Extra fallback for very slow connections
+    // Fallback: ensure search section is visible after 3 seconds regardless
     setTimeout(() => {
-        if (!animationsTriggered) {
+        if (window.getComputedStyle(searchSection).opacity === '0') {
             document.body.classList.add('no-animations');
-            triggerAnimations();
         }
-    }, 5000);
+    }, 3000);
 }
 
 // Initialize when DOM is ready

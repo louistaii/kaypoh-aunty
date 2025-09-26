@@ -85,6 +85,21 @@
 
     <script src="./app.js"></script>
     <script>
+    // Logo animation handling
+    document.addEventListener('DOMContentLoaded', function() {
+        const logo = document.querySelector('.logo-img');
+        if (logo) {
+            // Ensure the logo starts invisible
+            logo.style.opacity = '0';
+            logo.style.transform = 'scale(0.3)';
+            
+            // Force animation after a small delay
+            setTimeout(() => {
+                logo.style.animation = 'logoScaleIn 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+            }, 300);
+        }
+    });
+    
     // Tagline switching logic for tab change
     document.addEventListener('DOMContentLoaded', function() {
         const tabSearch = document.getElementById('tabSearch');
@@ -97,6 +112,25 @@
             tabTest.addEventListener('click', function() {
                 headerTagline.textContent = "Don't believe Auntie? Come test me lah!";
             });
+        }
+
+        // Handle logo loading for animation reliability
+        const logoImg = document.querySelector('.logo-img');
+        if (logoImg) {
+            // Add loaded class when image loads
+            logoImg.addEventListener('load', function() {
+                this.classList.add('loaded');
+            });
+            
+            // If image is already loaded (cached), add class immediately
+            if (logoImg.complete) {
+                logoImg.classList.add('loaded');
+            }
+            
+            // Fallback: ensure logo is visible after animation duration
+            setTimeout(() => {
+                logoImg.classList.add('loaded');
+            }, 2000);
         }
     });
     </script>
