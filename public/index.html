@@ -8,10 +8,14 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
+    <nav class="navbar">
+        <a href="index.html" class="nav-link active">Home</a>
+        <a href="how-it-works.html" class="nav-link">How it Works</a>
+    </nav>
     <div class="container" id="mainContainer">
         <div class="header">
             <img src="./media/logo.png" alt="Kaypoh Aunty Logo" class="logo-img">
-            <p id="headerTagline">Kaypoh Aunties, the best source for reviews!</p>
+            <p id="headerTagline">Need a useful review? Aunty is here for you!</p>
         </div>
 
         <div class="search-section" id="searchSection">
@@ -81,18 +85,52 @@
 
     <script src="./app.js"></script>
     <script>
+    // Logo animation handling
+    document.addEventListener('DOMContentLoaded', function() {
+        const logo = document.querySelector('.logo-img');
+        if (logo) {
+            // Ensure the logo starts invisible
+            logo.style.opacity = '0';
+            logo.style.transform = 'scale(0.3)';
+            
+            // Force animation after a small delay
+            setTimeout(() => {
+                logo.style.animation = 'logoScaleIn 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+            }, 300);
+        }
+    });
+    
     // Tagline switching logic for tab change
     document.addEventListener('DOMContentLoaded', function() {
         const tabSearch = document.getElementById('tabSearch');
         const tabTest = document.getElementById('tabTest');
-        const headerTagline = document.getElementById('headerTagline');
+        const headerTagline = document.getElementById('headerTagline'); 
         if (tabSearch && tabTest && headerTagline) {
             tabSearch.addEventListener('click', function() {
-                headerTagline.textContent = "Kaypoh Aunties, the best source for reviews!";
+                headerTagline.textContent = "Need a useful review? Aunty is here for you!";
             });
             tabTest.addEventListener('click', function() {
-                headerTagline.textContent = "Don't believe Auntie? Come test me lah!";
+                headerTagline.textContent = "Test my skills with your custom reviews!";
             });
+        }
+
+        // Handle logo loading for animation reliability
+        const logoImg = document.querySelector('.logo-img');
+        if (logoImg) {
+            // Add loaded class when image loads
+            logoImg.addEventListener('load', function() {
+                this.classList.add('loaded');
+            });
+            
+            // If image is already loaded (cached), add class immediately
+            if (logoImg.complete) {
+                logoImg.classList.add('loaded');
+            }
+            
+            // Fallback: ensure logo is visible after animation duration
+            setTimeout(() => {
+                logoImg.classList.add('loaded');
+            }, 2000);
         }
     });
     </script>

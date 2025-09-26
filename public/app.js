@@ -78,6 +78,7 @@ const mockReviews = [
 // DOM elements
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
+const headerElement = document.querySelector('.header');
 const placesList = document.getElementById('placesList');
 const reviewsSection = document.getElementById('reviewsSection');
 const reviewsGrid = document.getElementById('reviewsGrid');
@@ -255,8 +256,7 @@ function transformApifyData(apifyResults) {
 async function handleSearch() {
     const query = searchInput.value.trim();
     if (!query) return;
-    // Shift up the search bar
-    if (mainContainer) mainContainer.classList.add('shift-up');
+    // Animation handled by CSS
     // Determine search scope
     let finalQuery = query;
     let location = '';
@@ -318,8 +318,7 @@ async function handleSearch() {
             displayPlaces(results);
         }, 2000);
     }
-    // Shift the container up
-    mainContainer.classList.add('shift-up');
+    // Animation handled by CSS
 }
 
 function showLoading(message = 'Loading...') {
@@ -537,8 +536,28 @@ testBtn.addEventListener('click', async () => {
 searchInput.addEventListener('input', (e) => {
     if (e.target.value.length === 0) {
         placesList.classList.remove('show');
-        if (mainContainer) mainContainer.classList.remove('shift-up');
     }
 });
 
 if (searchScopeContainer) searchScopeContainer.style.display = '';
+
+// Simple animation fallback for very slow connections
+function initializePageAnimations() {
+    const searchSection = document.querySelector('.search-section');
+    
+    if (!searchSection) return;
+    
+    // Fallback: ensure search section is visible after 3 seconds regardless
+    setTimeout(() => {
+        if (window.getComputedStyle(searchSection).opacity === '0') {
+            document.body.classList.add('no-animations');
+        }
+    }, 3000);
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializePageAnimations);
+} else {
+    initializePageAnimations();
+}

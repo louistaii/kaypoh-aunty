@@ -1,160 +1,106 @@
-# Kaypoh Aunty 🕵️‍♀️
+<p align="center">
+  <img src="public/media/logo.png" alt="Kaypoh Aunty Logo" width="500"/>
+</p>
 
-A web application for scraping and classifying location reviews with AI-powered sentiment analysis. "Kaypoh" means nosy in Singaporean slang, and this app helps you be nosy about places by analyzing their reviews!
+# Kaypoh Aunty - Google Review Classifier
 
-## Features
+**Kaypoh Aunty** is a web application that automatically scrapes and classifies Google Maps reviews for any business or location. It integrates the power of the **Apify** scraping service with a sophisticated, dual-layer classification engine to provide deep insights into user feedback. The name "Kaypoh Aunty" is a playful nod to the Singaporean colloquial term for a nosy, inquisitive person, reflecting the application's ability to thoroughly examine and understand user-generated content.
 
-- 🔍 **Smart Review Scraping**: Search for locations and scrape reviews from various sources
-- 🤖 **AI-Powered Classification**: Automatically classify reviews using machine learning
-- 🌏 **Local & Global Search**: Search within Singapore or worldwide
-- 📊 **Review Analysis**: Categorize reviews as useful, spam, rants, etc.
-- 🎨 **Modern UI**: Clean, responsive interface built with vanilla HTML/CSS/JS
+The application is built with a JavaScript-based stack and leverages a fine-tuned **DistilBERT** model hosted on **Hugging Face**, which is called via an API.
 
-## Getting Started
+**Live Application:** [https://kaypoh-aunty.vercel.app/](https://kaypoh-aunty.vercel.app/)
 
-### Prerequisites
+---
 
-- Node.js (v14 or higher)
-- npm or yarn
-- Apify API token (for review scraping)
+## 🚀 How it Works: The User Workflow
 
-### Installation
+The entire process, from scraping to analysis, is streamlined within the web application:
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd kaypoh-aunty
-```
+1.  **Input a Name:** The user enters the name of any **business, landmark, or location** they want to analyze into the search bar.
+2.  **Scrape Reviews via Apify:** The application's backend triggers an integrated **Apify API** call. Apify then searches for the specified location on Google Maps and scrapes its reviews in real-time.
+3.  **Classify Each Review:** As reviews are collected, each one is passed through the Kaypoh Aunty classification engine.
+4.  **View Results:** The application displays the scraped reviews along with the labels assigned by the classifier, allowing for immediate analysis and filtering.
 
-2. Install dependencies:
-```bash
-npm install
-```
+---
 
-3. Set up environment variables:
-```bash
-cp .env.example .env
-```
-Edit `.env` and add your Apify API token:
-```
-APIFY_API_TOKEN=your_apify_api_token_here
-```
+## 🧐 Classification Categories
 
-4. Start the development server:
-```bash
-npm run dev
-```
+Kaypoh Aunty classifies reviews into the following categories:
 
-5. Open your browser and visit `http://localhost:3000`
+*   **Advertisements:** Identifies promotional content.
+*   **Spam:** Filters out undesirable or low-quality content.
+*   **Rant Without Visit:** Catches feedback from users who may not have had a firsthand experience.
+*   **Irrelevant Content:** Flags reviews that are nonsensical or do not contribute meaningful feedback.
+*   **Useful Reviews:** Recognizes detailed, helpful reviews that can inform business decisions or provide insights to other users.
 
-## Scripts
+---
 
-- `npm start` - Start the production server
-- `npm run dev` - Start the development server with nodemon
-- `npm run serve` - Serve static files only (for testing frontend)
-- `npm run lint` - Run ESLint
-- `npm test` - Run tests (placeholder)
+## ⚙️ The Classification Engine: A Two-Stage Process
 
-## Project Structure
+To ensure both speed and accuracy, every review is processed through a two-stage pipeline. A single review can be assigned **multiple labels** if it meets the criteria for different categories.
 
-```
-kaypoh-aunty/
-├── api/                    # API endpoints
-│   ├── classify-review.js  # Review classification endpoint
-│   └── scrape-reviews.js   # Review scraping endpoint
-├── public/                 # Static frontend files
-│   ├── index.html         # Main HTML file
-│   ├── style.css          # Styles
-│   ├── app.js            # Frontend JavaScript
-│   └── media/            # Images and icons
-├── server.js              # Express server
-├── package.json           # npm configuration
-└── README.md             # This file
-```
+### Stage 1: Rule-Based Classification
 
-## API Endpoints
+For immediate and efficient filtering, a fast, rule-based classifier written in JavaScript runs first. This initial step is designed to quickly catch obvious cases using predefined patterns and keywords.
 
-### POST /api/scrape-reviews
-Scrape reviews for a location.
+| Category | Triggers |
+| :--- | :--- |
+| **Advertisements** | URLs, phone numbers, promotional language + call-to-action. |
+| **Spam** | Excessive punctuation & caps, spam-like usernames, very short generic text. |
+| **Rant Without Visit** | Phrases like "never visited," hearsay language, lack of personal details. |
+| **Irrelevant Content**| Extremely short text, test content, standalone questions, gibberish/symbols. |
+| **Useful Reviews** | Detailed text, specific details mentioned, recommendation language, balanced opinion. |
 
-**Request body:**
-```json
-{
-  "searchQuery": "Restaurant name",
-  "location": "Singapore"
-}
-```
+### Stage 2: AI Model Classification (via Hugging Face API)
 
-### POST /api/classify-review
-Classify a single review.
+If a review does not match any of the predefined rules, it is then sent for a more nuanced analysis. The application makes an **API call** to a powerful, fine-tuned **DistilBERT model** hosted on the Hugging Face Hub. DistilBERT is a smaller, faster, and lighter version of BERT, making it ideal for a responsive web application as it retains over 95% of BERT's language understanding capabilities while being significantly more performant.
 
-**Request body:**
-```json
-{
-  "reviewText": "Great food and service!",
-  "rating": 5,
-  "threshold": 0.5
-}
-```
-*   **Spam**
-*   **Rants Without Visits**
-*   **Irrelevant Content**
+---
 
-This document outlines the development process and technical architecture of the machine learning model that powers the Kaypoh Aunty website.
+## 🤖 AI Model Training and Dataset
 
-## Development and Deployment Process
+The high accuracy of the classification model is the result of a meticulous training process designed to overcome real-world data challenges.
 
-### Step 1: Data Sourcing and Preparation
+### The Dataset
 
-The model was trained on a dataset sourced from the **McAuley Lab at UC San Diego**, specifically the Massachusetts dataset from their Google Local Review collection.
+The model was trained on a large dataset of Google local reviews from the **UC San Diego McAuley Lab**, available [here](https://mcauleylab.ucsd.edu/public_datasets/gdrive/googlelocal/).
 
-*   **Initial Data Cleaning**: The raw data was first processed to remove entries with empty or invalid text fields. This initial cleaning step resulted in a dataset of approximately **2 million reviews**.
-*   **Data Sampling**: Due to computational constraints for model training, a random sample of approximately 13,000 reviews was selected from the cleaned 2-million-review pool. This sampled dataset was used for training and validation.
+### Textual Feature Engineering
 
-### Step 2: Model Training
+To give the model more context, structured data was engineered into the text itself. Features like the review's `rating` and whether it included pictures (`has_pics`) were converted into a string and appended to the original review text, separated by a special `[SEP]` token.
 
-A multi-label classification model was trained to perform the categorization task.
+**Example of Enriched Text Input:**
+`"Very good place nice things... [SEP] rating:5.0 has_pics:0"`
 
-**1. Addressing Class Imbalance**
+This technique allows the **DistilBERT** model to learn the meaning and importance of these features in relation to the review text.
 
-The sampled dataset exhibited a significant class imbalance, with a disproportionately high number of "Useful Review" labels. To mitigate model bias towards the majority class, a **weighted loss function** (`torch.nn.BCEWithLogitsLoss` with a `pos_weight` parameter) was implemented. Weights were calculated based on the inverse frequency of each class:
+### The Challenge: Severe Class Imbalance
 
-*   **Advertisement**: 2.349
-*   **Irrelevant Content**: 2.221
-*   **Rant Without Visit**: 2.070
-*   **Spam**: 2.492
-*   **Useful Review**: 0.278
+After analyzing over 4 thousand of reviews, the initial distribution of labeled data was extremely imbalanced:
 
-**2. Technical Specifications**
+*   **Useful:** 3,910 samples
+*   **Spam:** 87 samples
+*   **Irrelevant:** 48 samples
+*   **Rant without visit:** 10 samples
+*   **Advertisement:** 4 samples
 
-*   **Model Architecture**: `distilbert-base-uncased` from the Hugging Face library was used as the base model.
-*   **Data Split**: The sampled data was split into an 80/20 train/validation set.
-*   **Training Framework**: The model was trained using the Hugging Face `Trainer` API. The best model checkpoint was saved based on the `f1_macro` score to ensure balanced performance across all categories.
+Training a model on such a skewed dataset would lead to poor performance, as the model would be heavily biased towards the "Useful" category and fail to recognize the minority classes.
 
-### Step 3: Performance Evaluation
+### The Solution: LLM-Generated Synthetic Data
 
-The trained model was evaluated on the unseen validation set. The results are detailed in the classification report below.
+To solve the imbalance, a **Large Language Model (LLM)** was used to generate high quality, realistic synthetic data for the underrepresented categories. This process involved creating thousands of new, diverse examples for Spam, Irrelevant, Rant, and Advertisement reviews, resulting in a perfectly balanced class composition:
 
-**Classification Report:**
+*   **Advertisement:** ~3,914 samples
+*   **Rant without visit:** ~3,920 samples
+*   **Irrelevant:** ~3,958 samples
+*   **Spam:** ~3,997 samples
+*   **Useful:** 3,910 samples
 
-| Class | Precision | Recall | F1-Score | Support |
-| :--- | :--- | :--- | :--- | :--- |
-| **Advertisement** | 0.99 | 0.99 | 0.99 | 223 |
-| **Irrelevant Content** | 0.95 | 0.92 | 0.94 | 196 |
-| **Rant Without Visit** | 0.78 | 0.45 | 0.57 | 257 |
-| **Spam** | 0.98 | 0.98 | 0.98 | 196 |
-| **Useful Review** | 0.92 | 0.97 | 0.94 | 1840 |
+This crucial step ensured the model was trained on an equal number of examples for each category, allowing it to learn the unique features of each class effectively.
 
-The model demonstrates high performance in identifying "Advertisement" and "Spam" categories. The "Rant Without Visit" class presented the most challenge, as indicated by its lower F1-score.
+### Final Performance
 
-### Step 4: Deployment and Integration
+This comprehensive training strategy resulted in an exceptionally reliable and accurate model.
 
-The final model was deployed and integrated into the Kaypoh Aunty website following a modern, API-driven architecture.
-
-*   **Model Hosting**: The trained model and its tokenizer were uploaded to the **Hugging Face Hub**.
-*   **Inference**: Real-time classification is handled via the **Hugging Face Inference API**. This provides a scalable, serverless endpoint for model predictions.
-*   **Application Architecture**:
-    1.  The Kaypoh Aunty website, which is deployed on **Vercel**, scrapes reviews based on user input.
-    2.  The website's backend sends an API request for each review text to the Hugging Face Inference API endpoint.
-    3.  The API returns the classification results in JSON format.
-    4.  The frontend then dynamically displays the review with its corresponding category tags, enabling user filtering.
+*   **Overall F1-Score (eval\_f1\_micro): 99.64%** - An outstanding balance between precision and recall.
+*   **Perfect Match Accuracy (eval\_accuracy\_subset): 99.57%** - The model predicted the exact combination of labels with 100% accuracy for over 99.5% of the reviews in the test set.
