@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const { reviewText, rating, threshold = 0.5 } = req.body;
+  const { reviewText, rating, hasPhoto = 0, threshold = 0.5 } = req.body;
 
   if (!reviewText || reviewText.trim().length === 0) {
     return res.status(400).json({ 
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
       rating: rating,
       features: {
         rating: rating,
-        has_pics: 0 // Single reviews don't have photo information
+        has_pics: hasPhoto
       }
     });
     
@@ -96,7 +96,7 @@ export default async function handler(req, res) {
     
     // Step 2: If not locally classified, use ML model
     console.log(`[${new Date().toISOString()}] Sending to ML model for classification`);
-    const classification = await classifySingleReview(reviewText.trim(), rating, threshold);
+    const classification = await classifySingleReview(reviewText.trim(), rating, hasPhoto, threshold);
     
     return res.status(200).json({ 
       success: true, 
@@ -122,7 +122,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function classifySingleReview(reviewText, rating = 5.0, threshold = 0.5, maxRetries = 3) {
+async function classifySingleReview(reviewText, rating = 5.0, hasPics = 0, threshold = 0.5, maxRetries = 3) {
   // Updated: Use the new Hugging Face space endpoint
   const HF_API_URL = 'https://louistzx-kaypoh-aunty-v2.hf.space/gradio_api/call/classify_review';
   
@@ -144,7 +144,7 @@ async function classifySingleReview(reviewText, rating = 5.0, threshold = 0.5, m
           data: [
             reviewText,              // text
             rating,                 // rating from the request
-            0,                      // has_pics (default to 0 since we don't have this info)
+            hasPics,                // has_pics from the request (1 if photo uploaded, 0 if not)
             threshold
           ]
         }),
