@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const { reviewText, rating, threshold = 0.5 } = req.body;
+  const { reviewText, rating, hasPhoto = 0, threshold = 0.5 } = req.body;
 
   if (!reviewText || reviewText.trim().length === 0) {
     return res.status(400).json({ 
@@ -45,11 +45,34 @@ export default async function handler(req, res) {
     });
   }
 
+  if (rating === undefined || rating === null) {
+    return res.status(400).json({
+      success: false,
+      error: 'Rating is required for testing (value between 1.0 and 5.0)'
+    });
+  }
+
+  if (rating < 1.0 || rating > 5.0) {
+    return res.status(400).json({
+      success: false,
+      error: 'Rating must be between 1.0 and 5.0'
+    });
+  }
+
   try {
     console.log(`[${new Date().toISOString()}] Classifying single review: "${reviewText.trim().substring(0, 50)}..."`);
     
     // Step 1: Try local classification first
-    const localClassification = preClassifyReview(reviewText.trim(), rating || 0, '');
+    const localClassification = preClassifyReview(reviewText.trim());
+    
+    console.log(`[${new Date().toISOString()}] Review details:`, {
+      textLength: reviewText.trim().length,
+      rating: rating,
+      features: {
+        rating: rating,
+        has_pics: hasPhoto
+      }
+    });
     
     console.log(`[${new Date().toISOString()}] Local classification result:`, {
       isClassified: localClassification.isClassified,
@@ -73,7 +96,7 @@ export default async function handler(req, res) {
     
     // Step 2: If not locally classified, use ML model
     console.log(`[${new Date().toISOString()}] Sending to ML model for classification`);
-    const classification = await classifySingleReview(reviewText.trim(), threshold);
+    const classification = await classifySingleReview(reviewText.trim(), rating, hasPhoto, threshold);
     
     return res.status(200).json({ 
       success: true, 
@@ -99,9 +122,9 @@ export default async function handler(req, res) {
   }
 }
 
-async function classifySingleReview(reviewText, threshold = 0.5, maxRetries = 3) {
-  // Fixed: Use the correct Gradio API endpoint
-  const HF_API_URL = 'https://louistzx-kaypoh-aunty.hf.space/gradio_api/call/classify_review';
+async function classifySingleReview(reviewText, rating = 5.0, hasPics = 0, threshold = 0.5, maxRetries = 3) {
+  // Updated: Use the new Hugging Face space endpoint
+  const HF_API_URL = 'https://louistzx-kaypoh-aunty-v2.hf.space/gradio_api/call/classify_review';
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -118,7 +141,12 @@ async function classifySingleReview(reviewText, threshold = 0.5, maxRetries = 3)
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
         },
         body: JSON.stringify({
-          data: [reviewText, threshold]
+          data: [
+            reviewText,              // text
+            rating,                 // rating from the request
+            hasPics,                // has_pics from the request (1 if photo uploaded, 0 if not)
+            threshold
+          ]
         }),
         signal: controller.signal
       });

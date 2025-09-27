@@ -2,6 +2,9 @@
 
 import { preClassifyBatch } from './local-classifier.js';
 
+// Disable SSL certificate verification for development
+process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+
 export default async function handler(req, res) {
   // Enable CORS for your frontend
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -118,6 +121,19 @@ async function classifyReviewsInResults(results) {
       
       // Step 1: Local classification first
       const localResults = preClassifyBatch(place.reviews);
+      
+      // Log reviews with photos
+      const reviewsWithPhotos = place.reviews.filter(r => r.reviewImageUrls?.length > 0);
+      console.log(`[${new Date().toISOString()}] Reviews with photos:`, {
+        total: place.reviews.length,
+        withPhotos: reviewsWithPhotos.length,
+        photoReviews: reviewsWithPhotos.map(r => ({
+          text: (r.text || r.reviewText || '').substring(0, 30) + '...',
+          photoCount: r.reviewImageUrls?.length || 0,
+          rating: r.rating || r.stars
+        }))
+      });
+
       console.log(`[${new Date().toISOString()}] Local classification results:`, {
         total: localResults.summary.totalReviews,
         locallyClassified: localResults.summary.locallyClassified,
@@ -204,9 +220,19 @@ async function classifyReviewsInResults(results) {
 }
 
 async function classifyWithMLModel(reviews, threshold) {
-  const HF_BATCH_URL = 'https://louistzx-kaypoh-aunty.hf.space/gradio_api/call/classify_batch';
+  const HF_BATCH_URL = 'https://louistzx-kaypoh-aunty-v2.hf.space/gradio_api/call/classify_batch';
 
   const reviewTexts = reviews.map(r => r.text || r.reviewText || '');
+  const ratings = reviews.map(r => r.rating || 5.0);
+  const hasPics = reviews.map(r => (r.reviewImageUrls?.length > 0) ? 1 : 0);
+  
+  // Log the features being sent to the model
+  console.log(`[${new Date().toISOString()}] Reviews being sent to ML model:`, reviews.map(r => ({
+    text: (r.text || r.reviewText || '').substring(0, 30) + '...',
+    rating: r.rating || 5.0,
+    hasPhotos: (r.reviewImageUrls?.length > 0) ? 'Yes' : 'No',
+    photoCount: r.reviewImageUrls?.length || 0
+  })));
   
   // Step 1: POST to get event ID
   const controller = new AbortController();
@@ -219,7 +245,12 @@ async function classifyWithMLModel(reviews, threshold) {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
     },
     body: JSON.stringify({ 
-      data: [JSON.stringify(reviewTexts), threshold] 
+      data: [
+        JSON.stringify(reviewTexts),
+        JSON.stringify(ratings),
+        JSON.stringify(hasPics),
+        threshold
+      ] 
     }),
     signal: controller.signal
   });
@@ -366,6 +397,38 @@ async function waitForRunCompletion(runId, apiToken, actorId, maxWaitTime = 3000
         
         const results = await resultsResponse.json();
         console.log(`[${new Date().toISOString()}] Successfully fetched ${results.length} results`);
+        
+        // Log detailed structure of first place and its first review
+        if (results.length > 0) {
+          const firstPlace = results[0];
+          console.log(`[${new Date().toISOString()}] Apify API Response Structure:`, {
+            placeFields: Object.keys(firstPlace),
+            reviewFields: firstPlace.reviews && firstPlace.reviews.length > 0 
+              ? Object.keys(firstPlace.reviews[0])
+              : 'No reviews',
+            firstReviewSample: firstPlace.reviews && firstPlace.reviews.length > 0 
+              ? firstPlace.reviews[0]
+              : 'No reviews'
+          });
+
+          // Log full raw response for the first place and detailed review structure
+          console.log(`[${new Date().toISOString()}] Full Raw Apify Response for first place:`, 
+            JSON.stringify(firstPlace, null, 2)
+          );
+          
+          // Log detailed review structure if available
+          if (firstPlace.reviews && firstPlace.reviews.length > 0) {
+            const firstReview = firstPlace.reviews[0];
+            console.log(`[${new Date().toISOString()}] Detailed Review Structure:`, {
+              reviewImageUrls: firstReview.reviewImageUrls ? `Array with ${firstReview.reviewImageUrls.length} items` : 'Not found',
+              hasPhotosField: firstReview.hasPhotos ? 'Yes' : 'No',
+              reviewerPhotosField: firstReview.reviewerPhotos ? 'Yes' : 'No',
+              photosField: firstReview.photos ? 'Yes' : 'No',
+              imagesField: firstReview.images ? 'Yes' : 'No',
+              allImageFields: Object.keys(firstReview).filter(key => key.toLowerCase().includes('photo') || key.toLowerCase().includes('image'))
+            });
+          }
+        }
         
         return results;
         

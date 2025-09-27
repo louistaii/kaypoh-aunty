@@ -232,21 +232,30 @@ function transformApifyData(apifyResults) {
                     const text = review.text || review.reviewText || '';
                     return text.trim().length > 0;
                 })
-                .map((review, reviewIndex) => ({
-                    id: reviewIndex + 1,
-                    author: review.name || review.authorName || 'Anonymous',
-                    rating: review.stars || review.rating || 0,
-                    text: review.text || review.reviewText || 'No review text',
-                    // Use the classifications from the API if available, otherwise fall back to local categorization
-                    categories: review.classifications || categorizeReview(
-                        review.text || review.reviewText || '',
-                        review.stars || review.rating || 0,
-                        review.name || review.authorName || ''
-                    ),
-                    // Preserve classification metadata from the API
-                    localClassification: review.localClassification ?? false,
-                    classificationReason: review.classificationReason || 'No classification info'
-                }));
+                .map((review, reviewIndex) => {
+                    console.log('Processing review:', {
+                        text: (review.text || review.reviewText || '').substring(0, 30) + '...',
+                        photos: review.reviewImageUrls,
+                        hasPhotos: !!review.reviewImageUrls?.length
+                    });
+                    
+                    return {
+                        id: reviewIndex + 1,
+                        author: review.name || review.authorName || 'Anonymous',
+                        rating: review.stars || review.rating || 0,
+                        text: review.text || review.reviewText || 'No review text',
+                        reviewImageUrls: review.reviewImageUrls || [],  // Preserve photo information
+                        // Use the classifications from the API if available, otherwise fall back to local categorization
+                        categories: review.classifications || categorizeReview(
+                            review.text || review.reviewText || '',
+                            review.stars || review.rating || 0,
+                            review.name || review.authorName || ''
+                        ),
+                        // Preserve classification metadata from the API
+                        localClassification: review.localClassification ?? false,
+                        classificationReason: review.classificationReason || 'No classification info'
+                    };
+                });
         }
     });
     return { places, reviewsByPlace };
@@ -386,12 +395,14 @@ window.selectPlace = function(placeId) {
 }
 
 function displayReviews(reviews) {
-    // Debug: Check classification flags in UI
-    console.log('[UI] Review classification flags:', 
+    // Debug: Check review data including photos
+    console.log('[UI] Review data:', 
         reviews.map(r => ({
             text: r.text.substring(0, 30) + '...',
             localClassification: r.localClassification,
-            categories: r.categories
+            categories: r.categories,
+            hasPhotos: !!r.reviewImageUrls?.length,
+            photoCount: r.reviewImageUrls?.length || 0
         }))
     );
     
@@ -428,6 +439,9 @@ function displayReviews(reviews) {
             <div class="review-categories">
                 ${categoryTags}
                 <div class="classification-indicator">
+                    ${review.reviewImageUrls && review.reviewImageUrls.length > 0 ? 
+                        `<span class="photo-indicator" data-tooltip="This review contains ${review.reviewImageUrls.length} photo${review.reviewImageUrls.length > 1 ? 's' : ''}" style="margin-right: 8px;">📸</span>` 
+                        : ''}
                     ${classificationBadge}
                 </div>
             </div>
@@ -463,7 +477,23 @@ const testBtn = document.getElementById('testBtn');
 const testInput = document.getElementById('testInput');
 const testResult = document.getElementById('testResult');
 const testStarRating = document.getElementById('testStarRating');
+const testPhotoInput = document.getElementById('testPhotoInput');
+const testPhotoPreview = document.getElementById('testPhotoPreview');
+const testPhotoButton = document.getElementById('testPhotoButton');
 let testSelectedRating = 0;
+let testHasPhoto = 0;
+
+// Initially disable the test button
+testBtn.disabled = true;
+testBtn.classList.add('disabled');
+
+// Function to check if we can enable the test button
+function checkEnableTestButton() {
+    const hasRating = testSelectedRating > 0;
+    const hasText = testInput.value.trim().length > 0;
+    testBtn.disabled = !(hasRating && hasText);
+    testBtn.classList.toggle('disabled', !(hasRating && hasText));
+}
 
 if (testStarRating) {
     const stars = testStarRating.querySelectorAll('.star');
@@ -473,6 +503,7 @@ if (testStarRating) {
             stars.forEach((s, i) => {
                 s.classList.toggle('selected', i < testSelectedRating);
             });
+            checkEnableTestButton();
         });
         star.addEventListener('mouseover', function() {
             stars.forEach((s, i) => {
@@ -486,6 +517,9 @@ if (testStarRating) {
         });
     });
 }
+
+// Listen for changes in the test input
+testInput.addEventListener('input', checkEnableTestButton);
 testBtn.addEventListener('click', async () => {
     const text = testInput.value.trim();
     if (!text) {
@@ -494,13 +528,15 @@ testBtn.addEventListener('click', async () => {
     }
     testResult.innerHTML = '<span style="color:#888">Classifying...</span>';
     try {
-        const apiUrl = window.location.origin + '/api/classify-review';
+        // Use relative URL for API calls to avoid SSL issues
+        const apiUrl = '/api/classify-review';
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 reviewText: text,
-                rating: testSelectedRating
+                rating: testSelectedRating,
+                hasPhoto: testHasPhoto
             })
         });
         if (!response.ok) throw new Error('API error: ' + response.status);
@@ -514,14 +550,17 @@ testBtn.addEventListener('click', async () => {
                 ? `<span class="classification-badge local" data-tooltip="${result.data.classification_reason || 'Classified by rule-based filters'}">🔍 Rules</span>`
                 : `<span class="classification-badge ml" data-tooltip="${result.data.classification_reason || 'This review was classified by our pretrained model'}">🤖 Model</span>`;
             
-            // Create category tags
-            const categoryTags = categories.map(cat => 
-                `<span class="category-tag category-${cat.toLowerCase().replace(/\s+/g,'-')}">${cat}</span>`
-            ).join(' ');
+            // Create category tags - show "Unlabelled" if no categories
+            const categoryTags = categories.length > 0 
+                ? categories.map(cat => 
+                    `<span class="category-tag category-${cat.toLowerCase().replace(/\s+/g,'-')}">${cat}</span>`
+                  ).join(' ')
+                : `<span class="category-tag category-unlabelled">Unlabelled</span>`;
             
             testResult.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                     <span>Classified as:</span>
+                    ${testHasPhoto ? '<span style="margin-right: 8px;">📸</span>' : ''}
                     ${classificationBadge}
                 </div>
                 <div>${categoryTags}</div>
@@ -533,6 +572,87 @@ testBtn.addEventListener('click', async () => {
         testResult.innerHTML = '<span style="color:#c62828">Error: ' + err.message + '</span>';
     }
 });
+
+// Photo handling for test review
+if (testPhotoButton && testPhotoInput) {
+    // Paper clip button click handler
+    testPhotoButton.addEventListener('click', function() {
+        testPhotoInput.click();
+    });
+    
+    // File input change handler
+    testPhotoInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Check if it's an image
+            if (file.type.startsWith('image/')) {
+                testHasPhoto = 1;
+                
+                // Create preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (testPhotoPreview && testPhotoButton) {
+                        // Update button to show attachment
+                        testPhotoButton.innerHTML = `
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#28a745" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
+                            </svg>
+                            <span style="color: #28a745;">Photo attached</span>
+                        `;
+                        testPhotoButton.style.borderColor = '#28a745';
+                        testPhotoButton.style.backgroundColor = '#f8fff9';
+                        
+                        // Show preview with remove option
+                        testPhotoPreview.innerHTML = `
+                            <img src="${e.target.result}" alt="Photo preview" style="width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 2px solid #28a745;">
+                            <button type="button" onclick="removeTestPhoto()" style="
+                                background: none; 
+                                border: none; 
+                                color: #dc3545; 
+                                cursor: pointer; 
+                                font-size: 18px; 
+                                padding: 0; 
+                                margin-left: 4px;
+                                line-height: 1;
+                            " title="Remove photo">×</button>
+                        `;
+                        testPhotoPreview.style.display = 'flex';
+                    }
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert('Please select an image file (JPG, PNG, etc.)');
+                testPhotoInput.value = '';
+            }
+        }
+    });
+}
+
+// Global function to remove photo (called from inline onclick)
+window.removeTestPhoto = function() {
+    testHasPhoto = 0;
+    testPhotoInput.value = '';
+    
+    // Reset button to original state
+    if (testPhotoButton) {
+        testPhotoButton.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
+            </svg>
+            <span>Attach photo</span>
+        `;
+        testPhotoButton.style.borderColor = '#e9ecef';
+        testPhotoButton.style.backgroundColor = '#f8f9fa';
+        testPhotoButton.style.color = '#6c757d';
+    }
+    
+    // Hide preview
+    if (testPhotoPreview) {
+        testPhotoPreview.innerHTML = '';
+        testPhotoPreview.style.display = 'none';
+    }
+}
+
 searchInput.addEventListener('input', (e) => {
     if (e.target.value.length === 0) {
         placesList.classList.remove('show');
