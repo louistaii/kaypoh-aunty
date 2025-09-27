@@ -46,7 +46,7 @@ export function preClassifyReview(reviewText) {
         if (isVeryShortGeneric) triggers.push('very short generic text');
         result.triggeredRules.push(`Spam: ${triggers.join(', ')}`);
         
-        console.log(`[LOCAL CLASSIFIER] MATCHED Rule 2 - Spam: ExcessPunct=${hasExcessivePunctuation}, ExcessCaps=${hasExcessiveCaps}, SpamUsername=${hasSpamUsername}, ShortGeneric=${isVeryShortGeneric}`);
+        console.log(`[LOCAL CLASSIFIER] MATCHED Rule 2 - Spam: ExcessPunct=${hasExcessivePunctuation}, ExcessCaps=${hasExcessiveCaps}, ShortGeneric=${isVeryShortGeneric}`);
     }
 
     // Rant Without Visit: Look for phrases indicating no visit
