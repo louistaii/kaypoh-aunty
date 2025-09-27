@@ -232,21 +232,30 @@ function transformApifyData(apifyResults) {
                     const text = review.text || review.reviewText || '';
                     return text.trim().length > 0;
                 })
-                .map((review, reviewIndex) => ({
-                    id: reviewIndex + 1,
-                    author: review.name || review.authorName || 'Anonymous',
-                    rating: review.stars || review.rating || 0,
-                    text: review.text || review.reviewText || 'No review text',
-                    // Use the classifications from the API if available, otherwise fall back to local categorization
-                    categories: review.classifications || categorizeReview(
-                        review.text || review.reviewText || '',
-                        review.stars || review.rating || 0,
-                        review.name || review.authorName || ''
-                    ),
-                    // Preserve classification metadata from the API
-                    localClassification: review.localClassification ?? false,
-                    classificationReason: review.classificationReason || 'No classification info'
-                }));
+                .map((review, reviewIndex) => {
+                    console.log('Processing review:', {
+                        text: (review.text || review.reviewText || '').substring(0, 30) + '...',
+                        photos: review.reviewerPhotos,
+                        hasPhotos: !!review.reviewerPhotos?.length
+                    });
+                    
+                    return {
+                        id: reviewIndex + 1,
+                        author: review.name || review.authorName || 'Anonymous',
+                        rating: review.stars || review.rating || 0,
+                        text: review.text || review.reviewText || 'No review text',
+                        reviewerPhotos: review.reviewerPhotos || [],  // Preserve photo information
+                        // Use the classifications from the API if available, otherwise fall back to local categorization
+                        categories: review.classifications || categorizeReview(
+                            review.text || review.reviewText || '',
+                            review.stars || review.rating || 0,
+                            review.name || review.authorName || ''
+                        ),
+                        // Preserve classification metadata from the API
+                        localClassification: review.localClassification ?? false,
+                        classificationReason: review.classificationReason || 'No classification info'
+                    };
+                });
         }
     });
     return { places, reviewsByPlace };
@@ -386,12 +395,14 @@ window.selectPlace = function(placeId) {
 }
 
 function displayReviews(reviews) {
-    // Debug: Check classification flags in UI
-    console.log('[UI] Review classification flags:', 
+    // Debug: Check review data including photos
+    console.log('[UI] Review data:', 
         reviews.map(r => ({
             text: r.text.substring(0, 30) + '...',
             localClassification: r.localClassification,
-            categories: r.categories
+            categories: r.categories,
+            hasPhotos: !!r.reviewerPhotos?.length,
+            photoCount: r.reviewerPhotos?.length || 0
         }))
     );
     
@@ -422,6 +433,9 @@ function displayReviews(reviews) {
                 </div>
                 <div class="review-rating">
                     ${generateStars(review.rating)}
+                    ${review.reviewerPhotos && review.reviewerPhotos.length > 0 ? 
+                        `<span class="photo-indicator" title="This review includes ${review.reviewerPhotos.length} photo${review.reviewerPhotos.length > 1 ? 's' : ''}">📸</span>` 
+                        : ''}
                 </div>
             </div>
             <div class="review-text">${review.text}</div>
@@ -465,6 +479,18 @@ const testResult = document.getElementById('testResult');
 const testStarRating = document.getElementById('testStarRating');
 let testSelectedRating = 0;
 
+// Initially disable the test button
+testBtn.disabled = true;
+testBtn.classList.add('disabled');
+
+// Function to check if we can enable the test button
+function checkEnableTestButton() {
+    const hasRating = testSelectedRating > 0;
+    const hasText = testInput.value.trim().length > 0;
+    testBtn.disabled = !(hasRating && hasText);
+    testBtn.classList.toggle('disabled', !(hasRating && hasText));
+}
+
 if (testStarRating) {
     const stars = testStarRating.querySelectorAll('.star');
     stars.forEach((star, idx) => {
@@ -473,6 +499,7 @@ if (testStarRating) {
             stars.forEach((s, i) => {
                 s.classList.toggle('selected', i < testSelectedRating);
             });
+            checkEnableTestButton();
         });
         star.addEventListener('mouseover', function() {
             stars.forEach((s, i) => {
@@ -486,6 +513,9 @@ if (testStarRating) {
         });
     });
 }
+
+// Listen for changes in the test input
+testInput.addEventListener('input', checkEnableTestButton);
 testBtn.addEventListener('click', async () => {
     const text = testInput.value.trim();
     if (!text) {

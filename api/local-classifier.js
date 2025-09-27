@@ -1,8 +1,7 @@
 // Local rule-based classification before sending to ML model
 
-export function preClassifyReview(reviewText, rating = 0, authorName = '') {
+export function preClassifyReview(reviewText) {
     const text = reviewText.toLowerCase().trim();
-    const author = authorName.toLowerCase().trim();
     
     const result = {
         isClassified: false,
@@ -13,8 +12,6 @@ export function preClassifyReview(reviewText, rating = 0, authorName = '') {
     };
 
     console.log(`[LOCAL CLASSIFIER] Checking review: "${text.substring(0, 100)}..." (length: ${text.length})`);
-    console.log(`[LOCAL CLASSIFIER] Author: "${author}"`);
-    console.log(`[LOCAL CLASSIFIER] Rating: ${rating}`);
 
     // Advertisements: Look for URLs, phone numbers, promotional language
     const hasURL = /\bwww\.\w+\.\w+|http|\.com\b/gi.test(text);
@@ -35,19 +32,17 @@ export function preClassifyReview(reviewText, rating = 0, authorName = '') {
         console.log(`[LOCAL CLASSIFIER] MATCHED Rule 1 - Advertisements: URL=${hasURL}, Phone=${hasPhone}, Promo+CTA=${hasPromo && hasCallToAction}`);
     }
 
-    // Spam: Look for excessive punctuation, all caps, spammy usernames, very short generic reviews
+    // Spam: Look for excessive punctuation, all caps, very short generic reviews
     const hasExcessivePunctuation = (text.match(/[!?,.]{4,}/g) || []).length > 0;
     const hasExcessiveCaps = (text.match(/[A-Z]{8,}/g) || []).length > 0;
-    const hasSpamUsername = /\b(promo|deal|discount|seo|marketing)\b/gi.test(author); 
     const isVeryShortGeneric = text.length < 15 && /^(good|bad|great)!*$/gi.test(text.trim());
     
-    if ((hasExcessivePunctuation && hasExcessiveCaps) || hasSpamUsername || isVeryShortGeneric) {
+    if ((hasExcessivePunctuation && hasExcessiveCaps) || isVeryShortGeneric) {
         result.categories.push('Spam');
         result.categoryScores['Spam'] = 0.85;
         
         const triggers = [];
         if (hasExcessivePunctuation && hasExcessiveCaps) triggers.push('excessive punctuation + caps');
-        if (hasSpamUsername) triggers.push('spam-like username');
         if (isVeryShortGeneric) triggers.push('very short generic text');
         result.triggeredRules.push(`Spam: ${triggers.join(', ')}`);
         
@@ -141,9 +136,7 @@ export function preClassifyBatch(reviews) {
 
     reviews.forEach(review => {
         const classification = preClassifyReview(
-            review.text || review.reviewText || '', 
-            review.rating || 0,
-            review.author || review.authorName || ''
+            review.text || review.reviewText || ''
         );
 
         if (classification.isClassified) {
