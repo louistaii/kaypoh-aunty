@@ -1034,3 +1034,45 @@ body {
     /* Prevent flash of unstyled content */
     background: transparent;
 }
+
+/* Photo indicator tooltip styles */
+.photo-indicator[data-tooltip] {
+    cursor: help;
+    position: relative;
+}
+
+.photo-indicator[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    z-index: 1000;
+    margin-bottom: 5px;
+    opacity: 0;
+    animation: tooltipFadeIn 0.2s ease forwards;
+    max-width: 300px;
+    white-space: normal;
+    text-align: center;
+    word-wrap: break-word;
+}
+
+.photo-indicator[data-tooltip]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #333;
+    z-index: 1000;
+    margin-bottom: -5px;
+    opacity: 0;
+    animation: tooltipFadeIn 0.2s ease forwards;
+}

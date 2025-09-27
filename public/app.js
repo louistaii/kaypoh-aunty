@@ -235,8 +235,8 @@ function transformApifyData(apifyResults) {
                 .map((review, reviewIndex) => {
                     console.log('Processing review:', {
                         text: (review.text || review.reviewText || '').substring(0, 30) + '...',
-                        photos: review.reviewerPhotos,
-                        hasPhotos: !!review.reviewerPhotos?.length
+                        photos: review.reviewImageUrls,
+                        hasPhotos: !!review.reviewImageUrls?.length
                     });
                     
                     return {
@@ -244,7 +244,7 @@ function transformApifyData(apifyResults) {
                         author: review.name || review.authorName || 'Anonymous',
                         rating: review.stars || review.rating || 0,
                         text: review.text || review.reviewText || 'No review text',
-                        reviewerPhotos: review.reviewerPhotos || [],  // Preserve photo information
+                        reviewImageUrls: review.reviewImageUrls || [],  // Preserve photo information
                         // Use the classifications from the API if available, otherwise fall back to local categorization
                         categories: review.classifications || categorizeReview(
                             review.text || review.reviewText || '',
@@ -401,8 +401,8 @@ function displayReviews(reviews) {
             text: r.text.substring(0, 30) + '...',
             localClassification: r.localClassification,
             categories: r.categories,
-            hasPhotos: !!r.reviewerPhotos?.length,
-            photoCount: r.reviewerPhotos?.length || 0
+            hasPhotos: !!r.reviewImageUrls?.length,
+            photoCount: r.reviewImageUrls?.length || 0
         }))
     );
     
@@ -433,15 +433,15 @@ function displayReviews(reviews) {
                 </div>
                 <div class="review-rating">
                     ${generateStars(review.rating)}
-                    ${review.reviewerPhotos && review.reviewerPhotos.length > 0 ? 
-                        `<span class="photo-indicator" title="This review includes ${review.reviewerPhotos.length} photo${review.reviewerPhotos.length > 1 ? 's' : ''}">📸</span>` 
-                        : ''}
                 </div>
             </div>
             <div class="review-text">${review.text}</div>
             <div class="review-categories">
                 ${categoryTags}
                 <div class="classification-indicator">
+                    ${review.reviewImageUrls && review.reviewImageUrls.length > 0 ? 
+                        `<span class="photo-indicator" data-tooltip="This review contains ${review.reviewImageUrls.length} photo${review.reviewImageUrls.length > 1 ? 's' : ''}" style="margin-right: 8px;">📸</span>` 
+                        : ''}
                     ${classificationBadge}
                 </div>
             </div>
