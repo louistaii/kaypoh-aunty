@@ -50,6 +50,32 @@
                     <span class="star" data-value="5">&#9733;</span>
                 </div>
                 <textarea class="test-input" id="testInput" placeholder="Paste or type a review to test classification..."></textarea>
+                
+                <div class="photo-upload-section" style="margin: 15px 0; position: relative;">
+                    <input type="file" id="testPhotoInput" accept="image/*" style="display: none;">
+                    <div class="photo-attachment-area" style="display: flex; align-items: center; gap: 12px;">
+                        <button type="button" id="testPhotoButton" style="
+                            display: flex; 
+                            align-items: center; 
+                            gap: 6px; 
+                            background: #f8f9fa; 
+                            border: 1px solid #e9ecef; 
+                            border-radius: 8px; 
+                            padding: 8px 12px; 
+                            cursor: pointer; 
+                            font-size: 0.9rem; 
+                            color: #6c757d;
+                            transition: all 0.2s ease;
+                        " onmouseover="this.style.backgroundColor='#e9ecef'" onmouseout="this.style.backgroundColor='#f8f9fa'">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
+                            </svg>
+                            <span>Attach photo</span>
+                        </button>
+                        <div id="testPhotoPreview" style="display: none; align-items: center; gap: 8px;"></div>
+                    </div>
+                </div>
+                
                 <button class="test-btn" id="testBtn">Classify Review</button>
                 <div class="test-result" id="testResult"></div>
             </div>
